@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QDAY - Administration</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="admin-layout">
+    <!-- Menu latéral -->
+    <nav class="admin-sidebar">
+      <div class="admin-header">
+        <h2>QDAY Admin</h2>
+        <div class="admin-user">
+          <span>👤 <span data-translate="welcome">Administrateur</span></span>
+        </div>
+      </div>
+      
+      <ul class="admin-menu">
+        <li class="menu-item active" data-tab="questions">
+          <span>📝 <span data-translate="questions_tab">Gestion des Questions</span></span>
+        </li>
+        <li class="menu-item" data-tab="ads">
+          <span>📢 <span data-translate="ads_tab">Gestion des Publicités</span></span>
+        </li>
+        <li class="menu-item" data-tab="moderation">
+          <span>🛡️ <span data-translate="moderation_tab">Modération</span></span>
+        </li>
+        <li class="menu-item" data-tab="stats">
+          <span>📊 <span data-translate="stats_tab">Statistiques</span></span>
+        </li>
+        <li class="menu-item" data-tab="settings">
+          <span>⚙️ <span data-translate="settings_tab">Paramètres</span></span>
+        </li>
+      </ul>
+    </nav>
+
+    <!-- Contenu principal -->
+    <main class="admin-main">
+      <!-- Tab Questions -->
+      <div id="questions-tab" class="tab-content active">
+        <div class="tab-header">
+          <h1 data-translate="questions_tab">Gestion des Questions</h1>
+          <button class="btn-primary" id="addQuestionBtn">+ <span data-translate="add_question">Nouvelle Question</span></button>
+        </div>
+
+        <div class="questions-list">
+          <div class="list-header">
+            <span data-translate="question_column">Question</span>
+            <span data-translate="category_column">Catégorie</span>
+            <span data-translate="date_column">Date</span>
+            <span data-translate="status_column">Statut</span>
+            <span data-translate="actions_column">Actions</span>
+          </div>
+          <div id="questionsList"></div>
+        </div>
+      </div>
+
+      <!-- Tab Publicités -->
+      <div id="ads-tab" class="tab-content">
+        <div class="tab-header">
+          <h1>Gestion des Publicités</h1>
+        </div>
+
+        <div class="ads-grid">
+          <div class="ad-management-card" data-ad-slot="1">
+            <h3>Encart 1 - Publicité</h3>
+            <div class="ad-preview" id="ad-preview-1">
+              <div class="ad-placeholder-small"></div>
+            </div>
+            <button class="btn-secondary" onclick="showAdModal(1)">Configurer</button>
+          </div>
+
+          <div class="ad-management-card" data-ad-slot="2">
+            <h3>Encart 2 - Sponsor</h3>
+            <div class="ad-preview" id="ad-preview-2">
+              <div class="ad-placeholder-small"></div>
+            </div>
+            <button class="btn-secondary" onclick="showAdModal(2)">Configurer</button>
+          </div>
+
+          <div class="ad-management-card" data-ad-slot="3">
+            <h3>Encart 3 - Partenaire</h3>
+            <div class="ad-preview" id="ad-preview-3">
+              <div class="ad-placeholder-small"></div>
+            </div>
+            <button class="btn-secondary" onclick="showAdModal(3)">Configurer</button>
+          </div>
+
+          <div class="ad-management-card" data-ad-slot="4">
+            <h3>Encart 4 - Offre Spéciale</h3>
+            <div class="ad-preview" id="ad-preview-4">
+              <div class="ad-placeholder-small"></div>
+            </div>
+            <button class="btn-secondary" onclick="showAdModal(4)">Configurer</button>
+          </div>
+
+          <div class="ad-management-card" data-ad-slot="5">
+            <h3>Encart 5 - Promotion</h3>
+            <div class="ad-preview" id="ad-preview-5">
+              <div class="ad-placeholder-small"></div>
+            </div>
+            <button class="btn-secondary" onclick="showAdModal(5)">Configurer</button>
+          </div>
+
+          <div class="ad-management-card" data-ad-slot="6">
+            <h3>Encart 6 - Annonce</h3>
+            <div class="ad-preview" id="ad-preview-6">
+              <div class="ad-placeholder-small"></div>
+            </div>
+            <button class="btn-secondary" onclick="showAdModal(6)">Configurer</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab Modération -->
+      <div id="moderation-tab" class="tab-content">
+        <div class="tab-header">
+          <h1>Modération</h1>
+          <div class="moderation-stats">
+            <span class="stat-badge">⚠️ <span id="reportedCount">0</span> signalés</span>
+            <span class="stat-badge">🚫 <span id="bannedCount">0</span> bannis</span>
+          </div>
+        </div>
+
+        <!-- Filtres -->
+        <div class="moderation-filters">
+          <select id="moderationFilter">
+            <option value="all">Tout le contenu</option>
+            <option value="reported">Contenu signalé</option>
+            <option value="pending">En attente</option>
+            <option value="approved">Approuvé</option>
+            <option value="rejected">Rejeté</option>
+          </select>
+          <input type="text" id="moderationSearch" placeholder="Rechercher un utilisateur ou contenu...">
+          <button class="btn-secondary" onclick="refreshModeration()">🔄 Actualiser</button>
+        </div>
+
+        <!-- Tableau de modération -->
+        <div class="moderation-table">
+          <div class="table-header">
+            <span>Type</span>
+            <span>Contenu</span>
+            <span>Auteur</span>
+            <span>Date</span>
+            <span>Signalements</span>
+            <span>Statut</span>
+            <span>Actions</span>
+          </div>
+          <div id="moderationList"></div>
+        </div>
+
+        <!-- Actions groupées -->
+        <div class="bulk-actions">
+          <button class="btn-secondary" onclick="bulkApprove()">✅ Approuver la sélection</button>
+          <button class="btn-secondary" onclick="bulkReject()">❌ Rejeter la sélection</button>
+          <button class="btn-danger" onclick="bulkBan()">🚫 Bannir les utilisateurs</button>
+        </div>
+      </div>
+
+      <!-- Tab Statistiques -->
+      <div id="stats-tab" class="tab-content">
+        <div class="tab-header">
+          <h1>Statistiques</h1>
+        </div>
+        <div class="stats-grid">
+          <div class="stat-card">
+            <h3>Questions Totales</h3>
+            <span id="totalQuestions">0</span>
+          </div>
+          <div class="stat-card">
+            <h3>Réponses Aujourd'hui</h3>
+            <span id="todayAnswers">0</span>
+          </div>
+          <div class="stat-card">
+            <h3>Utilisateurs Actifs</h3>
+            <span id="activeUsers">0</span>
+          </div>
+          <div class="stat-card">
+            <h3>Taux d'Engagement</h3>
+            <span id="engagementRate">0%</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab Paramètres -->
+      <div id="settings-tab" class="tab-content">
+        <div class="tab-header">
+          <h1>Paramètres</h1>
+        </div>
+        <div class="settings-form">
+          <div class="form-group">
+            <label>Mode Maintenance</label>
+            <input type="checkbox" id="maintenanceMode">
+          </div>
+          <div class="form-group">
+            <label>Message Maintenance</label>
+            <input type="text" id="maintenanceMessage" placeholder="Site en maintenance...">
+          </div>
+          <button class="btn-primary">Sauvegarder</button>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Modal Ajout Question -->
+  <div id="questionModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Ajouter une Question</h3>
+        <span class="close" onclick="closeModal('questionModal')">&times;</span>
+      </div>
+      <form id="questionForm">
+        <div class="form-group">
+          <label data-translate="question_text_fr">Texte de la question (Français) *</label>
+          <input type="text" id="questionText_fr" data-translate-placeholder="question_text_fr_placeholder" placeholder="Entrez la question en français..." required>
+        </div>
+        
+        <div class="form-group">
+          <label data-translate="question_text_en">Texte de la question (Anglais) *</label>
+          <input type="text" id="questionText_en" data-translate-placeholder="question_text_en_placeholder" placeholder="Entrez la question en anglais..." required>
+        </div>
+        
+        <div class="form-group">
+          <label data-translate="question_category">Catégorie *</label>
+          <select id="questionCategory" required>
+            <option value="">-- Catégorie --</option>
+            <option value="Politique">Politique</option>
+            <option value="Sport">Sport</option>
+            <option value="Culture">Culture</option>
+            <option value="Santé">Santé</option>
+            <option value="People">People</option>
+            <option value="Religion">Religion</option>
+            <option value="Technologie">Technologie</option>
+            <option value="Actualité">Actualité</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label data-translate="today_question">Question du jour</label>
+          <input type="checkbox" id="isTodayQuestion" onchange="handleTodayQuestionChange()">
+          <small data-translate="today_question_help">Cocher pour définir comme question du jour (activation immédiate)</small>
+        </div>
+
+        <div class="form-group" id="scheduleGroup">
+          <label>Programmation</label>
+          <input type="datetime-local" id="questionSchedule">
+          <small>Laisser vide pour activation immédiate</small>
+        </div>
+
+        <div class="form-actions">
+          <button type="button" class="btn-secondary" onclick="closeModal('questionModal')">Annuler</button>
+          <button type="submit" class="btn-primary">Ajouter</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal Publicité -->
+  <div id="adModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Configurer Publicité <span id="adSlotNumber"></span></h3>
+        <span class="close" onclick="closeModal('adModal')">&times;</span>
+      </div>
+      <form id="adForm">
+        <input type="hidden" id="adSlot">
+        
+        <div class="form-group">
+          <label>Type de contenu *</label>
+          <select id="adType" required>
+            <option value="">-- Type --</option>
+            <option value="image">Image</option>
+            <option value="video">Vidéo</option>
+            <option value="text">Texte</option>
+            <option value="html">HTML</option>
+            <option value="adsense">Google AdSense</option>
+          </select>
+        </div>
+
+        <div class="form-group" id="imageGroup" style="display:none;">
+          <label>Image</label>
+          <div class="file-input-group">
+            <input type="file" id="adImageFile" accept="image/*" onchange="handleImageFile(this)">
+            <input type="url" id="adImageUrl" placeholder="ou URL de l'image...">
+          </div>
+          <div id="imagePreview" class="file-preview"></div>
+        </div>
+
+        <div class="form-group" id="videoGroup" style="display:none;">
+          <label>Vidéo</label>
+          <div class="file-input-group">
+            <input type="file" id="adVideoFile" accept="video/*" onchange="handleVideoFile(this)">
+            <input type="url" id="adVideoUrl" placeholder="ou URL de la vidéo...">
+          </div>
+          <div id="videoPreview" class="file-preview"></div>
+        </div>
+
+        <div class="form-group" id="textGroup" style="display:none;">
+          <label>Texte</label>
+          <textarea id="adText" rows="4" placeholder="Votre texte publicitaire..."></textarea>
+        </div>
+
+        <div class="form-group" id="htmlGroup" style="display:none;">
+          <label>Code HTML</label>
+          <textarea id="adHtml" rows="6" placeholder="<div>...</div>"></textarea>
+        </div>
+
+        <div class="form-group" id="adsenseGroup" style="display:none;">
+          <label>Google AdSense</label>
+          <div class="adsense-config">
+            <div class="form-group">
+              <label>ID Client AdSense</label>
+              <input type="text" id="adsenseClientId" placeholder="ca-pub-XXXXXXXXXXXXXXXX">
+            </div>
+            <div class="form-group">
+              <label>ID Slot</label>
+              <input type="text" id="adsenseSlotId" placeholder="XXXXXXXXX">
+            </div>
+            <div class="form-group">
+              <label>Format</label>
+              <select id="adsenseFormat">
+                <option value="responsive">Responsive</option>
+                <option value="auto">Auto</option>
+                <option value="rectangle">Rectangle (300x250)</option>
+                <option value="banner">Bannière (728x90)</option>
+                <option value="skyscraper">Skyscraper (120x600)</option>
+              </select>
+            </div>
+            <div class="adsense-preview">
+              <div class="adsense-placeholder">
+                <div class="adsense-logo">Google AdSense</div>
+                <div class="adsense-size">300x250</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Lien de destination</label>
+          <input type="url" id="adLink" placeholder="https://...">
+        </div>
+
+        <div class="form-group">
+          <label>Programmation</label>
+          <input type="datetime-local" id="adSchedule">
+          <small>Laisser vide pour activation immédiate</small>
+        </div>
+
+        <div class="form-group">
+          <label>Date d'expiration</label>
+          <input type="datetime-local" id="adExpiry">
+          <small>Laisser vide pour ne pas expirer</small>
+        </div>
+
+        <div class="form-actions">
+          <button type="button" class="btn-secondary" onclick="closeModal('adModal')">Annuler</button>
+          <button type="submit" class="btn-primary">Sauvegarder</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="translations.js"></script>
+  <script src="admin.js"></script>
+</body>
+</html>

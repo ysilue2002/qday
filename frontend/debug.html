@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Debug QDAY</title>
+  <style>
+    body { font-family: Arial; padding: 20px; }
+    .debug { background: #f0f0f0; padding: 10px; margin: 10px 0; }
+  </style>
+</head>
+<body>
+  <h1>Debug Page</h1>
+  
+  <div class="debug">
+    <h3>Test API Connection</h3>
+    <button onclick="testAPI()">Test API</button>
+    <div id="apiResult"></div>
+  </div>
+
+  <div class="debug">
+    <h3>Test Submit Answer</h3>
+    <input type="text" id="testAnswer" placeholder="Test answer" />
+    <button onclick="testSubmitAnswer()">Submit Test Answer</button>
+    <div id="submitResult"></div>
+  </div>
+
+  <script>
+    // Test API connection
+    async function testAPI() {
+      try {
+        const res = await fetch('http://localhost:5000/api/questions/today');
+        const data = await res.json();
+        document.getElementById('apiResult').innerHTML = 
+          `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+      } catch (err) {
+        document.getElementById('apiResult').innerHTML = 
+          `<div style="color: red">Error: ${err.message}</div>`;
+      }
+    }
+
+    // Test submit answer
+    async function testSubmitAnswer() {
+      const answerText = document.getElementById('testAnswer').value;
+      if (!answerText) {
+        alert('Please enter an answer');
+        return;
+      }
+
+      try {
+        // First get today's question
+        const questionRes = await fetch('http://localhost:5000/api/questions/today');
+        const question = await questionRes.json();
+
+        if (!question._id) {
+          document.getElementById('submitResult').innerHTML = 
+            '<div style="color: red">No active question found</div>';
+          return;
+        }
+
+        // Submit answer
+        const answerRes = await fetch('http://localhost:5000/api/answers', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            questionId: question._id,
+            author: 'TestUser',
+            text: answerText
+          })
+        });
+
+        const result = await answerRes.json();
+        document.getElementById('submitResult').innerHTML = 
+          `<pre>Status: ${answerRes.status}
+${JSON.stringify(result, null, 2)}</pre>`;
+
+      } catch (err) {
+        document.getElementById('submitResult').innerHTML = 
+          `<div style="color: red">Error: ${err.message}</div>`;
+      }
+    }
+
+    // Auto-test on load
+    testAPI();
+  </script>
+</body>
+</html>
