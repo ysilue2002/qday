@@ -45,14 +45,70 @@ const loadAds = async () => {
   }
 };
 
-// Charger la question du jour - Version hybride (API + fallback)
+// Charger la question du jour - Version localStorage prioritaire
 const loadTodayQuestion = async () => {
   try {
-    console.log('=== Loading today question (hybrid mode) ===');
+    console.log('=== Loading today question (localStorage first) ===');
     
-    // Essayer l'API en premier pour récupérer vos questions
+    // ÉTAPE 1: Essayer localStorage en premier (priorité absolue)
+    const storedQuestions = localStorage.getItem('qdayQuestions');
+    if (storedQuestions) {
+      try {
+        const allQuestions = JSON.parse(storedQuestions);
+        console.log('Loaded from localStorage:', allQuestions);
+        
+        if (allQuestions.length > 0) {
+          // Chercher une question active
+          const activeQuestion = allQuestions.find(q => q.active);
+          if (activeQuestion) {
+            console.log('Found active question in localStorage:', activeQuestion);
+            currentQuestion = activeQuestion;
+            
+            const questionText = getQuestionText(currentQuestion);
+            const questionDate = currentQuestion.date || currentQuestion.createdAt || new Date().toISOString();
+            
+            document.getElementById("questionBox").innerHTML = `
+              <div class="question-card">
+                <h3>${questionText}</h3>
+                <small>${currentQuestion.category} | ${new Date(questionDate).toLocaleDateString()}</small>
+                <div style="color: #666; font-size: 0.8rem; margin-top: 0.5rem;">💾 Question locale</div>
+              </div>
+            `;
+            
+            loadAnswers();
+            return;
+          }
+          
+          // Si pas de question active, prendre la plus récente
+          const recentQuestion = allQuestions.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))[0];
+          if (recentQuestion) {
+            console.log('Using most recent question from localStorage:', recentQuestion);
+            currentQuestion = recentQuestion;
+            
+            const questionText = getQuestionText(currentQuestion);
+            const questionDate = currentQuestion.date || currentQuestion.createdAt || new Date().toISOString();
+            
+            document.getElementById("questionBox").innerHTML = `
+              <div class="question-card">
+                <h3>${questionText}</h3>
+                <small>${currentQuestion.category} | ${new Date(questionDate).toLocaleDateString()}</small>
+                <div style="color: #666; font-size: 0.8rem; margin-top: 0.5rem;">💾 Question locale</div>
+              </div>
+            `;
+            
+            loadAnswers();
+            return;
+          }
+        }
+      } catch (parseErr) {
+        console.error('Error parsing localStorage questions:', parseErr);
+      }
+    }
+    
+    console.log('No valid questions in localStorage, trying API...');
+    
+    // ÉTAPE 2: Si localStorage vide, essayer l'API
     try {
-      console.log('Trying API first...');
       const res = await fetch("/api/questions/today");
       console.log('API Response status:', res.status);
       
@@ -62,9 +118,7 @@ const loadTodayQuestion = async () => {
         
         if (apiQuestion && apiQuestion.text) {
           currentQuestion = apiQuestion;
-          console.log('Using API question:', currentQuestion);
           
-          // Afficher la question de l'API
           const questionText = getQuestionText(currentQuestion);
           const questionDate = currentQuestion.date || currentQuestion.createdAt || new Date().toISOString();
           
@@ -72,23 +126,20 @@ const loadTodayQuestion = async () => {
             <div class="question-card">
               <h3>${questionText}</h3>
               <small>${currentQuestion.category} | ${new Date(questionDate).toLocaleDateString()}</small>
-              <div style="color: #666; font-size: 0.8rem; margin-top: 0.5rem;">📝 Question personnalisée</div>
+              <div style="color: #666; font-size: 0.8rem; margin-top: 0.5rem;">🌐 Question API</div>
             </div>
           `;
           
           loadAnswers();
           return;
         }
-      } else {
-        const errorText = await res.text();
-        console.error('API Error:', res.status, errorText);
       }
     } catch (apiErr) {
       console.error('API request failed:', apiErr);
     }
     
-    // Si l'API échoue, utiliser la question par défaut
-    console.log('API failed, using frontend default question...');
+    // ÉTAPE 3: Question par défaut finale
+    console.log('Using frontend default question...');
     const defaultQuestion = {
       _id: 'frontend-default-' + Date.now(),
       text: "Quelle est votre plus grande réussite cette année ?",
@@ -98,10 +149,8 @@ const loadTodayQuestion = async () => {
       isFrontendDefault: true
     };
     
-    console.log('Using frontend default question:', defaultQuestion);
     currentQuestion = defaultQuestion;
     
-    // Afficher la question par défaut
     const questionText = getQuestionText(currentQuestion);
     const questionDate = currentQuestion.date || currentQuestion.createdAt || new Date().toISOString();
     
@@ -113,7 +162,6 @@ const loadTodayQuestion = async () => {
       </div>
     `;
     
-    // Charger les réponses (mode localStorage)
     loadAnswers();
     
   } catch (err) {
