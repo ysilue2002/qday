@@ -45,12 +45,43 @@ const loadAds = async () => {
   }
 };
 
-// Charger la question du jour
+// Charger la question du jour - Version frontend autonome
 const loadTodayQuestion = async () => {
   try {
-    console.log('=== Loading today question ===');
+    console.log('=== Loading today question (frontend mode) ===');
     
-    // Charger depuis localStorage en premier
+    // Question par défaut directement dans le frontend - pas d'API
+    const defaultQuestion = {
+      _id: 'frontend-default-' + Date.now(),
+      text: "Quelle est votre plus grande réussite cette année ?",
+      category: "Réflexion",
+      active: true,
+      createdAt: new Date(),
+      isFrontendDefault: true
+    };
+    
+    console.log('Using frontend default question:', defaultQuestion);
+    currentQuestion = defaultQuestion;
+    
+    // Afficher la question avec le texte selon la langue
+    const questionText = getQuestionText(currentQuestion);
+    const questionDate = currentQuestion.date || currentQuestion.createdAt || new Date().toISOString();
+    
+    document.getElementById("questionBox").innerHTML = `
+      <div class="question-card">
+        <h3>${questionText}</h3>
+        <small>${currentQuestion.category} | ${new Date(questionDate).toLocaleDateString()}</small>
+        <div style="color: #666; font-size: 0.8rem; margin-top: 0.5rem;">🌟 Question du jour</div>
+      </div>
+    `;
+    
+    // Charger les réponses (mode localStorage)
+    loadAnswers();
+    
+    return;
+    
+    /*
+    // Code API désactivé - utilisation du frontend autonome
     const storedQuestions = localStorage.getItem('qdayQuestions');
     let allQuestions = [];
     
@@ -59,7 +90,6 @@ const loadTodayQuestion = async () => {
       console.log('Loaded from localStorage:', allQuestions);
     }
     
-    // Si aucune question dans localStorage, essayer l'API
     if (allQuestions.length === 0) {
       console.log('No questions in localStorage, trying API...');
       try {
@@ -88,7 +118,6 @@ const loadTodayQuestion = async () => {
     console.log('Current date:', now);
     console.log('All questions available:', allQuestions);
     
-    // Chercher la question programmée pour aujourd'hui
     const todayQuestion = allQuestions.find(q => {
       console.log('Checking question:', q);
       
@@ -97,13 +126,11 @@ const loadTodayQuestion = async () => {
         return false;
       }
       
-      // Si pas de date programmée, c'est pour aujourd'hui
       if (!q.scheduledDate) {
         console.log('Question has no scheduled date, showing today');
         return true;
       }
       
-      // Vérifier si la date programmée est aujourd'hui
       const scheduledDate = new Date(q.scheduledDate);
       const isToday = scheduledDate.toDateString() === now.toDateString();
       console.log('Scheduled date:', scheduledDate, 'Is today:', isToday);
@@ -116,7 +143,6 @@ const loadTodayQuestion = async () => {
     if (todayQuestion) {
       currentQuestion = todayQuestion;
       
-      // Afficher la question avec le texte selon la langue
       const questionText = getQuestionText(currentQuestion);
       const questionDate = currentQuestion.date || currentQuestion.createdAt || new Date().toISOString();
       
@@ -129,7 +155,6 @@ const loadTodayQuestion = async () => {
         </div>
       `;
       
-      // Charger les réponses
       loadAnswers();
     } else {
       console.log('No today question found, showing message');
@@ -138,6 +163,7 @@ const loadTodayQuestion = async () => {
       document.getElementById("answersBox").innerHTML = 
         `<p>${t('no_answers')}</p>`;
     }
+    */
     
   } catch (err) {
     console.error('Erreur chargement question:', err);
