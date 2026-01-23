@@ -192,7 +192,7 @@ const loadTodayQuestion = async () => {
   }
 };
 
-// Charger les réponses - Version API unifiée
+// Charger les réponses - Version API unifiée avec temps réel
 const loadUnifiedAnswers = async () => {
   try {
     console.log('=== UNIFIED VERSION - Loading answers from API ===');
@@ -232,6 +232,12 @@ const loadUnifiedAnswers = async () => {
           
           if (filteredAnswers.length > 0) {
             displayAnswers(filteredAnswers);
+            
+            // Démarrer le stream temps réel après avoir chargé les réponses
+            setTimeout(() => {
+              startRealTimeStream();
+            }, 1000);
+            
             return;
           }
         }
@@ -263,6 +269,12 @@ const loadUnifiedAnswers = async () => {
           
           if (filteredAnswers.length > 0) {
             displayAnswers(filteredAnswers);
+            
+            // Démarrer le stream temps réel même pour localStorage
+            setTimeout(() => {
+              startRealTimeStream();
+            }, 1000);
+            
             return;
           }
         }
@@ -278,6 +290,11 @@ const loadUnifiedAnswers = async () => {
         <p>🌟 Be the first to answer!</p>
       </div>
     `;
+    
+    // Démarrer le stream temps réel même sans réponses
+    setTimeout(() => {
+      startRealTimeStream();
+    }, 1000);
     
   } catch (err) {
     console.error('UNIFIED ERROR - Answers loading failed:', err);
@@ -445,42 +462,204 @@ const submitUnifiedAnswer = async () => {
   }
 };
 
-// Afficher une notification
-const showNotification = (message, type = 'info') => {
-  const colors = {
-    success: '#4CAF50',
-    warning: '#ff9800',
-    error: '#f44336',
-    info: '#2196F3'
-  };
+// Variables globales pour le temps réel
+let eventSource = null;
+let isRealTimeEnabled = true;
+
+// Démarrer le stream en temps réel
+const startRealTimeStream = () => {
+  if (!currentQuestion || !currentQuestion._id) {
+    console.log('Pas de question pour le stream temps réel');
+    return;
+  }
   
-  const notification = document.createElement('div');
-  notification.style.cssText = `
-    position: fixed; top: 20px; right: 20px; background: ${colors[type]}; 
-    color: white; padding: 15px 20px; border-radius: 8px; z-index: 1000;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.2); max-width: 300px;
-    font-size: 0.9rem; animation: slideIn 0.3s ease;
+  // Arrêter l'ancien stream s'il existe
+  if (eventSource) {
+    eventSource.close();
+  }
+  
+  console.log('🚀 Démarrage du stream temps réel pour:', currentQuestion._id);
+  
+  try {
+    eventSource = new EventSource(`/api/answers/stream?questionId=${currentQuestion._id}`);
+    
+    eventSource.onopen = () => {
+      console.log('✅ Stream temps réel connecté');
+      showNotification('📡 Connecté en temps réel', 'success');
+    };
+    
+    eventSource.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        console.log('📥 Message reçu:', data);
+        
+        if (data.type === 'new_answer') {
+          console.log('💬 Nouvelle réponse instantanée:', data.answer.pseudo);
+          addRealTimeAnswer(data.answer);
+          showNotification(`💬 ${data.answer.pseudo} a répondu!`, 'info');
+        } else if (data.type === 'connected') {
+          console.log('✅ Connecté au stream');
+        }
+      } catch (err) {
+        console.error('❌ Erreur parsing message SSE:', err);
+      }
+    };
+    
+    eventSource.onerror = (err) => {
+      console.error('❌ Erreur stream SSE:', err);
+      showNotification('⚠️ Connexion temps réel perdue', 'warning');
+      
+      // Redémarrer après 5 secondes
+      setTimeout(() => {
+        if (isRealTimeEnabled) {
+          console.log('🔄 Tentative de reconnexion...');
+          startRealTimeStream();
+        }
+      }, 5000);
+    };
+    
+  } catch (err) {
+    console.error('❌ Erreur création stream SSE:', err);
+    showNotification('❌ Impossible de se connecter en temps réel', 'error');
+  }
+};
+
+// Arrêter le stream temps réel
+const stopRealTimeStream = () => {
+  if (eventSource) {
+    eventSource.close();
+    eventSource = null;
+    console.log('🔌 Stream temps réel arrêté');
+  }
+};
+
+// Ajouter une réponse en temps réel à l'affichage
+const addRealTimeAnswer = (answer) => {
+  const answersBox = document.getElementById("answersBox");
+  
+  // Vérifier si la réponse existe déjà
+  const existingAnswer = document.querySelector(`[data-answer-id="${answer._id}"]`);
+  if (existingAnswer) {
+    console.log('Réponse déjà affichée:', answer._id);
+    return;
+  }
+  
+  // Filtrer par langue
+  const shouldShow = !answer.language || 
+    (currentLanguage === 'fr' && !answer.language) ||
+    (currentLanguage === 'fr' && answer.language === 'fr') ||
+    (currentLanguage === 'en' && answer.language === 'en');
+  
+  if (!shouldShow) {
+    console.log('Réponse filtrée par langue:', answer.language);
+    return;
+  }
+  
+  // Créer la carte de réponse avec animation
+  const answerCard = document.createElement('div');
+  answerCard.className = 'answer-card real-time-new';
+  answerCard.setAttribute('data-answer-id', answer._id);
+  answerCard.style.cssText = `
+    background: white;
+    border: 2px solid #4CAF50;
+    border-radius: 10px;
+    padding: 15px;
+    margin: 10px 0;
+    box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);
+    animation: slideInRight 0.5s ease, pulse 2s ease;
+    position: relative;
   `;
-  notification.textContent = message;
   
-  // Ajouter l'animation
+  answerCard.innerHTML = `
+    <div style="position: absolute; top: -10px; right: -10px; background: #4CAF50; color: white; padding: 5px 10px; border-radius: 20px; font-size: 0.8rem; font-weight: bold;">
+      NOUVEAU
+    </div>
+    <div class="answer-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+      <strong style="color: #333;">${answer.pseudo}</strong>
+      <small style="color: #666;">${new Date(answer.createdAt).toLocaleTimeString()}</small>
+    </div>
+    <p style="margin: 10px 0; line-height: 1.5; color: #444;">${answer.text}</p>
+    <div class="answer-actions" style="display: flex; gap: 10px; align-items: center;">
+      <button onclick="likeAnswer('${answer._id}')" style="background: #f0f0f0; color: #333; border: none; padding: 8px 12px; border-radius: 5px; cursor: pointer; font-size: 0.9rem;">
+        ❤️ ${answer.likes}
+      </button>
+      <button onclick="toggleComments('${answer._id}')" style="background: #f0f0f0; color: #333; border: none; padding: 8px 12px; border-radius: 5px; cursor: pointer; font-size: 0.9rem;">
+        💬 0
+      </button>
+    </div>
+    <div id="comments-${answer._id}" style="display: none; margin-top: 10px; padding-left: 20px; border-left: 3px solid #f0f0f0;">
+      <!-- Comments will be loaded here -->
+    </div>
+  `;
+  
+  // Ajouter au début de la liste
+  if (answersBox.firstChild) {
+    answersBox.insertBefore(answerCard, answersBox.firstChild);
+  } else {
+    answersBox.appendChild(answerCard);
+  }
+  
+  // Supprimer le badge "NOUVEAU" après 5 secondes
+  setTimeout(() => {
+    const badge = answerCard.querySelector('[style*="position: absolute"]');
+    if (badge) {
+      badge.style.transition = 'opacity 0.5s';
+      badge.style.opacity = '0';
+      setTimeout(() => badge.remove(), 500);
+    }
+    answerCard.style.border = '1px solid #e0e0e0';
+    answerCard.style.boxShadow = '0 2px 5px rgba(0,0,0,0.1)';
+  }, 5000);
+  
+  // Son de notification (si disponible)
+  playNotificationSound();
+};
+
+// Jouer un son de notification
+const playNotificationSound = () => {
+  try {
+    const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTYIG2m98OScTgwOUarm7blmGgU7k9n1unEiBC13yO/eizEIHWq+8+OWT');
+    audio.volume = 0.3;
+    audio.play().catch(() => {
+      // Ignorer les erreurs de lecture audio
+    });
+  } catch (err) {
+    // Ignorer les erreurs audio
+  }
+};
+
+// Ajouter les animations CSS
+const addRealTimeStyles = () => {
   const style = document.createElement('style');
   style.textContent = `
-    @keyframes slideIn {
-      from { transform: translateX(100%); opacity: 0; }
-      to { transform: translateX(0); opacity: 1; }
+    @keyframes slideInRight {
+      from {
+        transform: translateX(100%);
+        opacity: 0;
+      }
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+    
+    @keyframes pulse {
+      0% {
+        box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);
+      }
+      50% {
+        box-shadow: 0 4px 25px rgba(76, 175, 80, 0.6);
+      }
+      100% {
+        box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);
+      }
+    }
+    
+    .answer-card.real-time-new {
+      transform-origin: right center;
     }
   `;
   document.head.appendChild(style);
-  
-  document.body.appendChild(notification);
-  
-  setTimeout(() => {
-    notification.style.animation = 'slideIn 0.3s ease reverse';
-    setTimeout(() => {
-      document.body.removeChild(notification);
-    }, 300);
-  }, 3000);
 };
 
 // Remplacer la fonction submitAnswer originale
@@ -670,100 +849,64 @@ const loadAdsFromAdmin = () => {
   }, 100);
 };
 
-// Initialisation
+// Initialisation au chargement de la page - Version Temps Réel
 document.addEventListener("DOMContentLoaded", () => {
-  console.log('Question DOM loaded');
+  console.log("=== QDAY Real-Time Chat System Initializing ===");
   
-  // Vérifier l'authentification en premier
-  if (!checkAuth()) return;
+  // Ajouter les styles CSS pour le temps réel
+  addRealTimeStyles();
   
-  console.log('User authenticated:', currentUser);
+  // Charger les publicités
+  loadStoredAds();
   
-  // Charger les publicités depuis le stockage local ou l'API
-  try {
-    loadStoredAds();
-    console.log('Ads loaded successfully');
-  } catch (err) {
-    console.error('Error loading ads:', err);
-  }
-  
-  try {
-    loadTodayQuestion();
-    console.log('Today question loaded');
-  } catch (err) {
-    console.error('Error loading today question:', err);
-  }
-  
-  // Event listeners
-  const submitBtn = document.getElementById("submitAnswerBtn");
-  console.log('Submit button found:', !!submitBtn);
-  
-  if (submitBtn) {
-    submitBtn.addEventListener("click", (e) => {
-      console.log('Button clicked!', e);
-      e.preventDefault();
-      submitAnswer();
-    });
-    console.log('Submit button event listener added');
-  } else {
-    console.error('Submit button not found in DOM!');
-  }
-  
-  const answerInput = document.getElementById("answerInput");
-  if (answerInput) {
-    answerInput.addEventListener("keypress", (e) => {
-      if (e.key === "Enter") {
-        console.log('Enter key pressed');
-        submitAnswer();
-      }
-    });
-    console.log('Answer input event listener added');
-  } else {
-    console.error('Answer input not found in DOM!');
-  }
-  
-  console.log('Question page initialization complete');
-  
-  // Écouter les changements de langue
-  window.addEventListener('languageChanged', () => {
-    console.log('Language changed to:', currentLanguage);
-    // Mettre à jour les textes dynamiques
-    updateDynamicTexts();
-  });
-  
-  // Mettre à jour les textes dynamiques au chargement
-  updateDynamicTexts();
-  
-  // Écouter les changements de localStorage pour mise à jour en temps réel
-  window.addEventListener('storage', (e) => {
-    if (e.key === 'deletedContent' || e.key === 'deletedComments' || e.key === 'qdayQuestions') {
-      console.log('LocalStorage changed, reloading...', e.key);
-      if (e.key === 'qdayQuestions') {
-        loadTodayQuestion();
-      } else {
-        loadAnswers();
-      }
-    }
-  });
-  
-  // Vérifier périodiquement les suppressions (pour la même page)
-  setInterval(() => {
-    const currentDeletedContent = JSON.parse(localStorage.getItem('deletedContent') || '[]');
-    const currentDeletedComments = JSON.parse(localStorage.getItem('deletedComments') || '[]');
+  // Charger l'utilisateur connecté
+  const savedUser = localStorage.getItem('qdayUser');
+  if (savedUser) {
+    currentUser = savedUser;
+    console.log('Utilisateur restauré:', currentUser);
     
-    if (JSON.stringify(currentDeletedContent) !== JSON.stringify(window.lastDeletedContent) ||
-        JSON.stringify(currentDeletedComments) !== JSON.stringify(window.lastDeletedComments)) {
-      console.log('Detected changes in deleted content, reloading...');
-      window.lastDeletedContent = currentDeletedContent;
-      window.lastDeletedComments = currentDeletedComments;
-      loadAnswers();
-    }
-  }, 1000);
-  
-  // Vérifier périodiquement si une nouvelle question doit être affichée (changement de jour)
-  setInterval(() => {
+    // Charger la question du jour et démarrer le temps réel
     loadTodayQuestion();
-  }, 60000); // Vérifier chaque minute
+  } else {
+    console.log('Aucun utilisateur connecté');
+  }
+  
+  // Configurer le changement de langue
+  const langToggle = document.getElementById('langToggle');
+  if (langToggle) {
+    langToggle.addEventListener('change', (e) => {
+      currentLanguage = e.target.value;
+      localStorage.setItem('qdayLanguage', currentLanguage);
+      console.log('Langue changée:', currentLanguage);
+      
+      // Recharger les réponses dans la nouvelle langue
+      if (currentQuestion) {
+        loadUnifiedAnswers();
+      }
+    });
+  }
+  
+  // Nettoyer le stream temps réel quand on quitte la page
+  window.addEventListener('beforeunload', () => {
+    stopRealTimeStream();
+  });
+  
+  // Gérer la visibilité de la page (pause/reprise du stream)
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      console.log('Page cachée - pause du stream');
+      stopRealTimeStream();
+    } else {
+      console.log('Page visible - reprise du stream');
+      if (currentQuestion && isRealTimeEnabled) {
+        setTimeout(() => {
+          startRealTimeStream();
+        }, 1000);
+      }
+    }
+  });
+  
+  console.log("=== QDAY Real-Time Chat System Ready ===");
 });
 
 // Mettre à jour les textes dynamiques

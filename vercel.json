@@ -23,6 +23,10 @@
       "dest": "/backend/api/questions/index.js"
     },
     {
+      "src": "/api/answers/stream",
+      "dest": "/backend/api/answers/stream.js"
+    },
+    {
       "src": "/api/answers/question/(.*)",
       "dest": "/backend/api/answers/question.js"
     },
