@@ -124,6 +124,7 @@ const loadTodayQuestion = async () => {
         <div class="question-card">
           <h3>${questionText}</h3>
           <small>${currentQuestion.category} | ${new Date(questionDate).toLocaleDateString()}</small>
+          ${currentQuestion.isDefault ? '<div style="color: #666; font-size: 0.8rem; margin-top: 0.5rem;">✨ Question par défaut</div>' : ''}
           ${currentQuestion.isFallback ? '<div style="color: #666; font-size: 0.8rem; margin-top: 0.5rem;">⚠️ Question par défaut</div>' : ''}
         </div>
       `;

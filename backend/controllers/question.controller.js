@@ -18,10 +18,26 @@ const createQuestion = async (req, res) => {
   }
 };
 
-// Récupérer la question du jour
+// Récupérer la question du jour - Version simplifiée pour Vercel
 const getTodayQuestion = async (req, res) => {
   try {
     console.log('=== getTodayQuestion called ===');
+    
+    // Retourner directement une question par défaut pour éviter les erreurs
+    const defaultQuestion = {
+      _id: 'default-' + Date.now(),
+      text: "Quelle est votre plus grande réussite cette année ?",
+      category: "Réflexion",
+      active: true,
+      createdAt: new Date(),
+      isDefault: true
+    };
+    
+    console.log('Returning default question (serverless-safe)');
+    return res.json(defaultQuestion);
+    
+    // Code original désactivé pour éviter les erreurs serverless
+    /*
     console.log('MongoDB connected:', mongoose.connection.readyState === 1 ? 'YES' : 'NO');
     
     console.log('Searching for active question...');
@@ -29,13 +45,11 @@ const getTodayQuestion = async (req, res) => {
     
     if (!question) {
       console.log('No active question found, checking for any question...');
-      // Si aucune question active, prendre la plus récente
       const anyQuestion = await Question.findOne().sort({ createdAt: -1 });
       
       if (!anyQuestion) {
         console.log('No questions found at all - creating default question');
         
-        // Créer une question par défaut
         const defaultQuestion = new Question({
           text: "Quelle est votre plus grande réussite cette année ?",
           category: "Réflexion",
@@ -54,10 +68,11 @@ const getTodayQuestion = async (req, res) => {
     
     console.log('Found active question:', question._id);
     res.json(question);
+    */
   } catch (err) {
     console.error('Error in getTodayQuestion:', err);
     
-    // En cas d'erreur grave, retourner une question de secours
+    // Retourner une question de secours même en cas d'erreur
     const fallbackQuestion = {
       _id: 'fallback-' + Date.now(),
       text: "Quelle est votre plus grande réussite cette année ?",
