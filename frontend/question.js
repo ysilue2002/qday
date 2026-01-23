@@ -151,7 +151,7 @@ const loadTodayQuestion = async () => {
     // ÉTAPE 3: Question par défaut finale
     console.log('No admin questions found, using default question...');
     const defaultQuestion = {
-      _id: 'default-' + Date.now(),
+      _id: 'default-question-fixed',
       text: currentLang === 'fr' ? "Quelle est votre plus grande réussite cette année ?" : "What is your greatest achievement this year?",
       text_fr: "Quelle est votre plus grande réussite cette année ?",
       text_en: "What is your greatest achievement this year?",
@@ -340,53 +340,60 @@ const submitUnifiedAnswer = async () => {
   }
   
   if (!currentQuestion || !currentQuestion._id) {
+    console.error('No current question available');
     alert(currentLanguage === 'fr' ? 'Pas de question disponible' : 'No question available');
     return;
   }
   
+  console.log('Submitting answer for question:', currentQuestion._id);
+  
   try {
-    // ÉTAPE 1: Essayer l'API MongoDB
-    try {
-      console.log('Trying API to submit answer...');
-      const res = await fetch("/api/answers", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          questionId: currentQuestion._id,
-          author: currentUser,
-          text: text,
-          language: currentLanguage,
-          likes: [],
-          comments: [],
-          createdAt: new Date().toISOString()
-        })
-      });
-      
-      console.log('Submit API Response status:', res.status);
-      
-      if (res.ok) {
-        console.log('Answer submitted to API successfully');
-        input.value = '';
-        loadUnifiedAnswers();
+    // ÉTAPE 1: Essayer l'API MongoDB (seulement si ce n'est pas une question par défaut)
+    if (!currentQuestion.isDefault) {
+      try {
+        console.log('Trying API to submit answer...');
+        const res = await fetch("/api/answers", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            questionId: currentQuestion._id,
+            author: currentUser,
+            text: text,
+            language: currentLanguage,
+            likes: [],
+            comments: [],
+            createdAt: new Date().toISOString()
+          })
+        });
         
-        // Message de confirmation
-        const confirmMsg = currentLanguage === 'fr' ? 
-          '✅ Réponse publiée avec succès!' : 
-          '✅ Answer published successfully!';
+        console.log('Submit API Response status:', res.status);
         
-        showNotification(confirmMsg, 'success');
-        return;
-      } else {
-        const errorData = await res.json();
-        console.error('API submit error:', errorData);
+        if (res.ok) {
+          console.log('Answer submitted to API successfully');
+          input.value = '';
+          loadUnifiedAnswers();
+          
+          // Message de confirmation
+          const confirmMsg = currentLanguage === 'fr' ? 
+            '✅ Réponse publiée avec succès!' : 
+            '✅ Answer published successfully!';
+          
+          showNotification(confirmMsg, 'success');
+          return;
+        } else {
+          const errorData = await res.json();
+          console.error('API submit error:', errorData);
+        }
+      } catch (apiErr) {
+        console.error('API submit request failed:', apiErr);
       }
-    } catch (apiErr) {
-      console.error('API submit request failed:', apiErr);
+    } else {
+      console.log('Default question - skipping API submission');
     }
     
-    console.log('API failed, saving to localStorage...');
+    console.log('Saving to localStorage...');
     
-    // ÉTAPE 2: Sauvegarder dans localStorage
+    // ÉTAPE 2: Sauvegarder dans localStorage (toujours)
     const storageKey = `qday_answers_${currentQuestion._id}`;
     let existingAnswers = [];
     
@@ -422,10 +429,10 @@ const submitUnifiedAnswer = async () => {
     
     // Message de confirmation
     const confirmMsg = currentLanguage === 'fr' ? 
-      '✅ Réponse sauvegardée localement!' : 
-      '✅ Answer saved locally!';
+      '✅ Réponse sauvegardée!' : 
+      '✅ Answer saved!';
     
-    showNotification(confirmMsg, 'warning');
+    showNotification(confirmMsg, 'success');
     
   } catch (err) {
     console.error('UNIFIED ERROR - Answer submission failed:', err);
