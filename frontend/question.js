@@ -642,34 +642,6 @@ const reportComment = async (answerId, commentAuthor, commentText) => {
   return;
 };
 
-// Afficher notification
-const showNotification = (message, type = 'info') => {
-  const notification = document.createElement('div');
-  notification.className = `notification notification-${type}`;
-  notification.textContent = message;
-  notification.style.cssText = `
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    padding: 1rem 1.5rem;
-    border-radius: 6px;
-    color: white;
-    font-weight: bold;
-    z-index: 10000;
-    animation: slideIn 0.3s ease;
-  `;
-  
-  if (type === 'success') notification.style.background = '#28a745';
-  if (type === 'error') notification.style.background = '#dc3545';
-  if (type === 'info') notification.style.background = '#17a2b8';
-  
-  document.body.appendChild(notification);
-  
-  setTimeout(() => {
-    notification.remove();
-  }, 3000);
-};
-
 // Charger les publicités stockées
 const loadStoredAds = () => {
   const stored = localStorage.getItem('qdayAds');
