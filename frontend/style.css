@@ -955,3 +955,273 @@ button:hover {
   border-radius: 4px;
   margin-bottom: 0.5rem;
 }
+
+/* ============================================
+   RESPONSIVE DESIGN - MOBILE FIRST
+   ============================================ */
+
+/* Mobile - jusqu'à 768px */
+@media (max-width: 768px) {
+  body {
+    font-size: 14px;
+    padding: 0.5rem;
+  }
+
+  .container {
+    padding: 1rem;
+    margin: 0.5rem;
+    width: calc(100% - 1rem);
+  }
+
+  .login-container {
+    padding: 1.5rem;
+    margin: 0.5rem;
+  }
+
+  .question-container {
+    padding: 1rem;
+    margin: 0.5rem;
+  }
+
+  /* Titres */
+  h1 {
+    font-size: 1.5rem;
+    margin-bottom: 1rem;
+  }
+
+  h2 {
+    font-size: 1.2rem;
+    margin-bottom: 0.8rem;
+  }
+
+  /* Question Box */
+  #questionBox {
+    margin-bottom: 1.5rem;
+  }
+
+  .question-card {
+    padding: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .question-card h3 {
+    font-size: 1.1rem;
+    line-height: 1.4;
+    margin-bottom: 0.5rem;
+  }
+
+  .question-card small {
+    font-size: 0.8rem;
+  }
+
+  /* Answers */
+  #answersBox {
+    margin-bottom: 1.5rem;
+  }
+
+  .answer-card {
+    padding: 0.8rem;
+    margin-bottom: 0.8rem;
+  }
+
+  .answer-header {
+    margin-bottom: 0.5rem;
+  }
+
+  .answer-header strong {
+    font-size: 0.9rem;
+  }
+
+  .answer-header small {
+    font-size: 0.75rem;
+  }
+
+  .answer-text {
+    font-size: 0.9rem;
+    line-height: 1.4;
+    margin-bottom: 0.8rem;
+  }
+
+  .answer-actions {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .like-btn, .comment-btn {
+    width: 100%;
+    padding: 0.6rem;
+    font-size: 0.9rem;
+  }
+
+  /* Input et bouton de réponse */
+  #answerInput {
+    width: 100%;
+    padding: 0.8rem;
+    font-size: 1rem;
+    margin-bottom: 0.8rem;
+    border-radius: 8px;
+    border: 1px solid #ddd;
+  }
+
+  #submitAnswerBtn {
+    width: 100%;
+    padding: 0.8rem;
+    font-size: 1rem;
+    border-radius: 8px;
+  }
+
+  /* Sélecteur de langue */
+  #languageSelector {
+    width: 100%;
+    padding: 0.8rem;
+    font-size: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  /* Comments */
+  .comments-section {
+    padding: 0.8rem;
+    margin-top: 0.8rem;
+  }
+
+  .comment {
+    padding: 0.5rem;
+    margin-bottom: 0.5rem;
+    font-size: 0.85rem;
+  }
+
+  .add-comment {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .add-comment input {
+    width: 100%;
+    padding: 0.6rem;
+    font-size: 0.9rem;
+  }
+
+  .add-comment button {
+    padding: 0.6rem;
+    font-size: 0.9rem;
+  }
+
+  /* Ads sidebar - caché sur mobile */
+  .ads-sidebar {
+    display: none;
+  }
+
+  /* Language indicator */
+  .language-indicator {
+    font-size: 0.7rem;
+    padding: 0.15rem 0.3rem;
+  }
+}
+
+/* Tablet - 768px à 1024px */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .container {
+    padding: 1.5rem;
+    margin: 1rem;
+  }
+
+  .question-card {
+    padding: 1.2rem;
+  }
+
+  .answer-card {
+    padding: 1rem;
+  }
+
+  .answer-actions {
+    flex-direction: row;
+    gap: 0.8rem;
+  }
+
+  .like-btn, .comment-btn {
+    padding: 0.6rem 1rem;
+    font-size: 0.9rem;
+  }
+
+  #answerInput {
+    width: calc(100% - 120px);
+  }
+
+  #submitAnswerBtn {
+    width: 100px;
+  }
+}
+
+/* Desktop - 1024px et plus */
+@media (min-width: 1025px) {
+  .container {
+    max-width: 1200px;
+    margin: 2rem auto;
+    padding: 2rem;
+  }
+
+  .question-container {
+    display: flex;
+    gap: 2rem;
+  }
+
+  .main-content {
+    flex: 1;
+  }
+
+  .ads-sidebar {
+    display: flex;
+    width: 300px;
+  }
+}
+
+/* Améliorations pour les petits écrans */
+@media (max-width: 480px) {
+  body {
+    padding: 0.25rem;
+  }
+
+  .container {
+    padding: 0.8rem;
+    margin: 0.25rem;
+    width: calc(100% - 0.5rem);
+  }
+
+  h1 {
+    font-size: 1.3rem;
+  }
+
+  .question-card h3 {
+    font-size: 1rem;
+  }
+
+  .answer-text {
+    font-size: 0.85rem;
+  }
+
+  .answer-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+  }
+
+  .answer-header small {
+    align-self: flex-end;
+  }
+}
+
+/* Orientation landscape sur mobile */
+@media (max-width: 768px) and (orientation: landscape) {
+  .container {
+    padding: 0.8rem;
+  }
+
+  .question-card {
+    padding: 0.8rem;
+  }
+
+  .answer-card {
+    padding: 0.6rem;
+  }
+}
