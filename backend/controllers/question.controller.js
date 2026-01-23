@@ -1,5 +1,6 @@
 // controllers/question.controller.js
 const Question = require("../models/Question");
+const mongoose = require("mongoose");
 
 // Créer une question (admin)
 const createQuestion = async (req, res) => {
@@ -20,6 +21,9 @@ const createQuestion = async (req, res) => {
 // Récupérer la question du jour
 const getTodayQuestion = async (req, res) => {
   try {
+    console.log('=== getTodayQuestion called ===');
+    console.log('MongoDB connected:', mongoose.connection.readyState === 1 ? 'YES' : 'NO');
+    
     console.log('Searching for active question...');
     const question = await Question.findOne({ active: true });
     
@@ -29,8 +33,19 @@ const getTodayQuestion = async (req, res) => {
       const anyQuestion = await Question.findOne().sort({ createdAt: -1 });
       
       if (!anyQuestion) {
-        console.log('No questions found at all');
-        return res.status(404).json({ message: "Aucune question trouvée" });
+        console.log('No questions found at all - creating default question');
+        
+        // Créer une question par défaut
+        const defaultQuestion = new Question({
+          text: "Quelle est votre plus grande réussite cette année ?",
+          category: "Réflexion",
+          active: true,
+          createdAt: new Date()
+        });
+        
+        await defaultQuestion.save();
+        console.log('Default question created:', defaultQuestion._id);
+        return res.json(defaultQuestion);
       }
       
       console.log('Found most recent question:', anyQuestion._id);
@@ -41,7 +56,19 @@ const getTodayQuestion = async (req, res) => {
     res.json(question);
   } catch (err) {
     console.error('Error in getTodayQuestion:', err);
-    res.status(500).json({ message: err.message });
+    
+    // En cas d'erreur grave, retourner une question de secours
+    const fallbackQuestion = {
+      _id: 'fallback-' + Date.now(),
+      text: "Quelle est votre plus grande réussite cette année ?",
+      category: "Réflexion",
+      active: true,
+      createdAt: new Date(),
+      isFallback: true
+    };
+    
+    console.log('Returning fallback question due to error');
+    res.json(fallbackQuestion);
   }
 };
 

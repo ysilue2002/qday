@@ -48,7 +48,7 @@ const loadAds = async () => {
 // Charger la question du jour
 const loadTodayQuestion = async () => {
   try {
-    console.log('Loading today question...');
+    console.log('=== Loading today question ===');
     
     // Charger depuis localStorage en premier
     const storedQuestions = localStorage.getItem('qdayQuestions');
@@ -64,14 +64,23 @@ const loadTodayQuestion = async () => {
       console.log('No questions in localStorage, trying API...');
       try {
         const res = await fetch("/api/questions/today");
+        console.log('API Response status:', res.status);
+        
         if (res.ok) {
-          const apiQuestions = await res.json();
-          allQuestions = apiQuestions;
-          localStorage.setItem('qdayQuestions', JSON.stringify(allQuestions));
-          console.log('Loaded from API:', allQuestions);
+          const apiQuestion = await res.json();
+          console.log('API Response:', apiQuestion);
+          
+          if (apiQuestion) {
+            allQuestions = [apiQuestion];
+            localStorage.setItem('qdayQuestions', JSON.stringify(allQuestions));
+            console.log('Saved to localStorage:', allQuestions);
+          }
+        } else {
+          const errorText = await res.text();
+          console.error('API Error:', res.status, errorText);
         }
       } catch (apiErr) {
-        console.log('API non disponible:', apiErr);
+        console.error('API request failed:', apiErr);
       }
     }
     
@@ -83,8 +92,8 @@ const loadTodayQuestion = async () => {
     const todayQuestion = allQuestions.find(q => {
       console.log('Checking question:', q);
       
-      if (!q.active) {
-        console.log('Question not active');
+      if (!q.active && !q.isFallback) {
+        console.log('Question not active and not fallback');
         return false;
       }
       
@@ -115,6 +124,7 @@ const loadTodayQuestion = async () => {
         <div class="question-card">
           <h3>${questionText}</h3>
           <small>${currentQuestion.category} | ${new Date(questionDate).toLocaleDateString()}</small>
+          ${currentQuestion.isFallback ? '<div style="color: #666; font-size: 0.8rem; margin-top: 0.5rem;">⚠️ Question par défaut</div>' : ''}
         </div>
       `;
       
