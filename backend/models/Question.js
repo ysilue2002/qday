@@ -2,7 +2,17 @@ const mongoose = require("mongoose");
 
 const questionSchema = new mongoose.Schema(
   {
-    text: {                   // anciennement title → maintenant text
+    text: {                   // Texte principal (fallback)
+      type: String,
+      required: true,
+      trim: true
+    },
+    text_fr: {                // Texte en français
+      type: String,
+      required: true,
+      trim: true
+    },
+    text_en: {                // Texte en anglais
       type: String,
       required: true,
       trim: true
@@ -18,7 +28,14 @@ const questionSchema = new mongoose.Schema(
         "People",
         "Religion",
         "Technologie",
-        "Actualité"
+        "Actualité",
+        "Cuisine",
+        "Cinéma",
+        "Musique",
+        "Voyage",
+        "Réflexion",
+        "Humour",
+        "Science"
       ]
     },
     date: {
@@ -28,6 +45,9 @@ const questionSchema = new mongoose.Schema(
     active: {
       type: Boolean,
       default: false
+    },
+    scheduledDate: {           // Date programmée pour la question du jour
+      type: Date
     }
   },
   { timestamps: true }

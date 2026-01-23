@@ -4,16 +4,23 @@ const mongoose = require("mongoose");
 
 // Créer une question (admin)
 const createQuestion = async (req, res) => {
-  const { text, category, active } = req.body;
+  const { text, text_fr, text_en, category, active } = req.body;
   try {
     if (active) {
       // désactive toutes les autres questions
       await Question.updateMany({ active: true }, { active: false });
     }
-    const question = new Question({ text, category, active });
+    const question = new Question({ 
+      text, 
+      text_fr, 
+      text_en, 
+      category, 
+      active 
+    });
     await question.save();
     res.status(201).json({ message: "Question créée", question });
   } catch (err) {
+    console.error('Error creating question:', err);
     res.status(500).json({ message: err.message });
   }
 };
