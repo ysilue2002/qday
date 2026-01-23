@@ -63,7 +63,7 @@ const loadTodayQuestion = async () => {
     if (allQuestions.length === 0) {
       console.log('No questions in localStorage, trying API...');
       try {
-        const res = await fetch("http://localhost:5000/api/questions/today");
+        const res = await fetch("/api/questions/today");
         if (res.ok) {
           const apiQuestions = await res.json();
           allQuestions = apiQuestions;
@@ -152,7 +152,7 @@ const loadAnswers = async () => {
     
     // Essayer de charger depuis l'API
     try {
-      const res = await fetch(`http://localhost:5000/api/answers/question/${currentQuestion._id}`);
+      const res = await fetch(`/api/answers/question/${currentQuestion._id}`);
       const apiAnswers = await res.json();
       
       // S'assurer que apiAnswers est un tableau
@@ -329,7 +329,7 @@ const submitAnswer = async () => {
       // Pour l'instant, on va essayer avec l'ID tel quel
     }
     
-    const res = await fetch("http://localhost:5000/api/answers", {
+    const res = await fetch("/api/answers", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -394,7 +394,7 @@ const likeAnswer = async (answerId) => {
     
     // Essayer de charger depuis l'API
     try {
-      const res = await fetch(`http://localhost:5000/api/answers/question/${currentQuestion._id}`);
+      const res = await fetch(`/api/answers/question/${currentQuestion._id}`);
       const apiAnswers = await res.json();
       if (Array.isArray(apiAnswers)) {
         allAnswers = apiAnswers;
@@ -429,7 +429,7 @@ const likeAnswer = async (answerId) => {
       
       // Essayer de retirer le like via l'API
       try {
-        const res = await fetch(`http://localhost:5000/api/answers/${answerId}/unlike`, {
+        const res = await fetch(`/api/answers/${answerId}/unlike`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ author: currentUser })
@@ -465,7 +465,7 @@ const likeAnswer = async (answerId) => {
       
       // Essayer d'ajouter le like via l'API
       try {
-        const res = await fetch(`http://localhost:5000/api/answers/${answerId}/like`, {
+        const res = await fetch(`/api/answers/${answerId}/like`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ author: currentUser })
@@ -515,7 +515,7 @@ const addComment = async (answerId) => {
   if (!text) return;
   
   try {
-    const res = await fetch(`http://localhost:5000/api/answers/${answerId}/comment`, {
+    const res = await fetch(`/api/answers/${answerId}/comment`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

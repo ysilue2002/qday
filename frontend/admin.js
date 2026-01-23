@@ -243,7 +243,7 @@ const loadQuestions = async () => {
     
     // Essayer de charger depuis l'API (si disponible)
     try {
-      const res = await fetch('http://localhost:5000/api/questions');
+      const res = await fetch('/api/questions');
       const questions = await res.json();
       currentQuestions = questions;
       localStorage.setItem('qdayQuestions', JSON.stringify(currentQuestions));
