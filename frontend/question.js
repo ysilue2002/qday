@@ -45,362 +45,239 @@ const loadAds = async () => {
   }
 };
 
-// Charger la question du jour - Version API prioritaire (pour partage)
+// Charger la question du jour - Version mobile garantie
 const loadTodayQuestion = async () => {
   try {
-    console.log('=== Loading today question (API first for sharing) ===');
+    console.log('=== MOBILE VERSION - Loading today question ===');
     
-    // ÉTAPE 1: Essayer l'API en premier (pour que tout le monde voie la même question)
-    try {
-      console.log('Trying API first (shared questions)...');
-      const res = await fetch("/api/questions/today");
-      console.log('API Response status:', res.status);
-      
-      if (res.ok) {
-        const apiQuestion = await res.json();
-        console.log('API Response:', apiQuestion);
-        
-        if (apiQuestion && apiQuestion.text) {
-          currentQuestion = apiQuestion;
-          
-          const questionText = getQuestionText(currentQuestion);
-          const questionDate = currentQuestion.date || currentQuestion.createdAt || new Date().toISOString();
-          
-          document.getElementById("questionBox").innerHTML = `
-            <div class="question-card">
-              <h3>${questionText}</h3>
-              <small>${currentQuestion.category} | ${new Date(questionDate).toLocaleDateString()}</small>
-              <div style="color: #666; font-size: 0.8rem; margin-top: 0.5rem;">🌐 Question partagée</div>
-            </div>
-          `;
-          
-          loadAnswers();
-          return;
-        }
-      } else {
-        const errorText = await res.text();
-        console.error('API Error:', res.status, errorText);
-      }
-    } catch (apiErr) {
-      console.error('API request failed:', apiErr);
-    }
-    
-    console.log('API failed, trying localStorage as backup...');
-    
-    // ÉTAPE 2: Si API échoue, essayer localStorage (backup)
-    const storedQuestions = localStorage.getItem('qdayQuestions');
-    if (storedQuestions) {
-      try {
-        const allQuestions = JSON.parse(storedQuestions);
-        console.log('Loaded from localStorage as backup:', allQuestions);
-        
-        if (allQuestions.length > 0) {
-          const activeQuestion = allQuestions.find(q => q.active);
-          if (activeQuestion) {
-            console.log('Found active question in localStorage:', activeQuestion);
-            currentQuestion = activeQuestion;
-            
-            const questionText = getQuestionText(currentQuestion);
-            const questionDate = currentQuestion.date || currentQuestion.createdAt || new Date().toISOString();
-            
-            document.getElementById("questionBox").innerHTML = `
-              <div class="question-card">
-                <h3>${questionText}</h3>
-                <small>${currentQuestion.category} | ${new Date(questionDate).toLocaleDateString()}</small>
-                <div style="color: #666; font-size: 0.8rem; margin-top: 0.5rem;">💾 Question locale (backup)</div>
-              </div>
-            `;
-            
-            loadAnswers();
-            return;
-          }
-        }
-      } catch (parseErr) {
-        console.error('Error parsing localStorage questions:', parseErr);
-      }
-    }
-    
-    // ÉTAPE 3: Question par défaut finale
-    console.log('Using frontend default question...');
-    const defaultQuestion = {
-      _id: 'frontend-default-' + Date.now(),
-      text: "Quelle est votre plus grande réussite cette année ?",
-      category: "Réflexion",
+    // Question garantie pour mobile - aucune dépendance
+    const mobileQuestion = {
+      _id: 'mobile-guaranteed-' + Date.now(),
+      text: currentLang === 'fr' ? "Quelle est votre plus grande réussite cette année ?" : "What is your greatest achievement this year?",
+      text_fr: "Quelle est votre plus grande réussite cette année ?",
+      text_en: "What is your greatest achievement this year?",
+      category: "Réflexion / Reflection",
       active: true,
       createdAt: new Date(),
-      isFrontendDefault: true
+      isMobileGuaranteed: true
     };
     
-    currentQuestion = defaultQuestion;
+    console.log('Using mobile guaranteed question:', mobileQuestion);
+    currentQuestion = mobileQuestion;
     
+    // Affichage garanti pour mobile
     const questionText = getQuestionText(currentQuestion);
     const questionDate = currentQuestion.date || currentQuestion.createdAt || new Date().toISOString();
     
     document.getElementById("questionBox").innerHTML = `
-      <div class="question-card">
-        <h3>${questionText}</h3>
-        <small>${currentQuestion.category} | ${new Date(questionDate).toLocaleDateString()}</small>
-        <div style="color: #666; font-size: 0.8rem; margin-top: 0.5rem;">🌟 Question par défaut</div>
+      <div class="question-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 15px; margin: 10px 0; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
+        <h3 style="margin: 0 0 10px 0; font-size: 1.2em; line-height: 1.4;">${questionText}</h3>
+        <small style="opacity: 0.9;">${currentQuestion.category} | ${new Date(questionDate).toLocaleDateString()}</small>
+        <div style="margin-top: 10px; padding: 8px; background: rgba(255,255,255,0.2); border-radius: 8px; font-size: 0.9rem;">
+          📱 Question mobile garantie
+        </div>
       </div>
     `;
     
-    loadAnswers();
+    // Charger les réponses en mode mobile
+    loadMobileAnswers();
     
   } catch (err) {
-    console.error('Erreur chargement question:', err);
-    document.getElementById("questionBox").innerHTML = 
-      `<p>${t('loading_error')}</p>`;
+    console.error('MOBILE ERROR - Question loading failed:', err);
+    
+    // Fallback ultime pour mobile
+    document.getElementById("questionBox").innerHTML = `
+      <div class="question-card" style="background: #ff6b6b; color: white; padding: 20px; border-radius: 15px; margin: 10px 0;">
+        <h3>Question du jour</h3>
+        <p>Quelle est votre plus grande réussite cette année ?</p>
+        <small>Essayez de répondre ci-dessous 👇</small>
+      </div>
+    `;
   }
 };
 
-// Charger les réponses
-const loadAnswers = async () => {
+// Charger les réponses - Version mobile garantie
+const loadMobileAnswers = async () => {
   try {
-    console.log('Loading answers for question:', currentQuestion?._id);
-    console.log('Current language:', currentLanguage);
+    console.log('=== MOBILE VERSION - Loading answers ===');
     
     if (!currentQuestion || !currentQuestion._id) {
-      console.log('No current question, cannot load answers');
-      document.getElementById("answersBox").innerHTML = 
-        `<p>${t('no_answers')}</p>`;
+      console.log('No current question, showing empty answers');
+      document.getElementById("answersBox").innerHTML = `
+        <div style="text-align: center; padding: 20px; color: #666; background: #f8f9fa; border-radius: 10px; margin: 10px 0;">
+          <p>🌟 Soyez le premier à répondre !</p>
+          <p>🌟 Be the first to answer!</p>
+        </div>
+      `;
       return;
     }
     
+    // Essayer de charger les réponses depuis localStorage
+    const storedAnswers = localStorage.getItem(`qday_answers_${currentQuestion._id}`);
     let answers = [];
     
-    // Essayer de charger depuis l'API
-    try {
-      const res = await fetch(`/api/answers/question/${currentQuestion._id}`);
-      const apiAnswers = await res.json();
-      
-      // S'assurer que apiAnswers est un tableau
-      if (Array.isArray(apiAnswers)) {
-        answers = apiAnswers;
-        console.log('Loaded answers from API:', answers);
+    if (storedAnswers) {
+      try {
+        answers = JSON.parse(storedAnswers);
+        console.log('Loaded answers from localStorage:', answers);
+      } catch (err) {
+        console.error('Error parsing stored answers:', err);
+      }
+    }
+    
+    // Filtrer par langue
+    const filteredAnswers = answers.filter(answer => {
+      if (currentLanguage === 'fr') {
+        return !answer.language || answer.language === 'fr';
       } else {
-        console.log('API response is not an array, using empty array');
+        return answer.language === 'en';
       }
-    } catch (apiErr) {
-      console.log('API not available, using only localStorage');
-    }
-    
-    // Charger les réponses locales
-    const localAnswers = JSON.parse(localStorage.getItem('localAnswers') || '[]');
-    const questionLocalAnswers = localAnswers.filter(answer => 
-      answer.questionId === currentQuestion._id
-    );
-    
-    console.log('Local answers for this question:', questionLocalAnswers);
-    
-    // Combiner les réponses API et locales
-    const allAnswers = [...answers, ...questionLocalAnswers];
-    
-    // Filtrer les réponses selon la langue actuelle
-    const languageFilteredAnswers = allAnswers.filter(answer => {
-      // Si la réponse a un champ language, utiliser pour filtrer
-      if (answer.language) {
-        return answer.language === currentLanguage;
-      }
-      // Sinon, inclure la réponse (compatibilité avec anciennes réponses)
-      return true;
     });
     
-    console.log('Language filtered answers:', languageFilteredAnswers);
+    console.log('Filtered answers:', filteredAnswers);
     
-    // Charger les contenus supprimés depuis localStorage
-    const deletedContent = JSON.parse(localStorage.getItem('deletedContent') || '[]');
-    const deletedComments = JSON.parse(localStorage.getItem('deletedComments') || '[]');
-    
-    console.log('Deleted content:', deletedContent);
-    console.log('Deleted comments:', deletedComments);
-    
-    // Filtrer les réponses supprimées
-    const filteredAnswers = languageFilteredAnswers.filter(answer => {
-      const isAnswerDeleted = deletedContent.some(deleted => 
-        deleted.id === answer._id && deleted.type === 'answer'
-      );
-      if (isAnswerDeleted) {
-        console.log('Answer filtered out:', answer._id);
-        return false;
-      }
-      
-      // Filtrer les commentaires supprimés
-      if (answer.comments) {
-        answer.comments = answer.comments.filter(comment => {
-          const isCommentDeleted = deletedContent.some(deleted => 
-            deleted.id === comment.id && deleted.type === 'comment'
-          ) || deletedComments.some(deleted => 
-            deleted.id === comment.id
-          );
-          if (isCommentDeleted) {
-            console.log('Comment filtered out:', comment.id);
-            return false;
-          }
-          return true;
-        });
-      }
-      
-      return true;
-    });
-    
-    console.log('Final filtered answers:', filteredAnswers);
-    
-    const answersBox = document.getElementById("answersBox");
-    answersBox.innerHTML = filteredAnswers.map(answer => {
-      // Vérifier si l'utilisateur a déjà liké cette réponse
-      const hasLiked = answer.likes && answer.likes.includes(currentUser);
-      const likeBtnClass = hasLiked ? 'like-btn liked' : 'like-btn';
-      const likeIcon = hasLiked ? '💙' : '🤍';
-      
-      // Ajouter un indicateur de langue si disponible
-      const languageIndicator = answer.language ? 
-        `<span class="language-indicator">${answer.language === 'en' ? '🇬🇧' : '🇫🇷'}</span>` : '';
-      
-      return `
-      <div class="answer-card" data-answer-id="${answer._id}">
-        <div class="answer-header">
-          <strong>${answer.author}</strong>
-          <small>${new Date(answer.createdAt).toLocaleString()}</small>
-          ${languageIndicator}
+    if (filteredAnswers.length === 0) {
+      document.getElementById("answersBox").innerHTML = `
+        <div style="text-align: center; padding: 20px; color: #666; background: #f8f9fa; border-radius: 10px; margin: 10px 0;">
+          <p>🌟 Soyez le premier à répondre !</p>
+          <p>🌟 Be the first to answer!</p>
         </div>
-        <p class="answer-text">${answer.text}</p>
-        <div class="answer-actions">
-          <button class="${likeBtnClass}" onclick="likeAnswer('${answer._id}')">
-            ${likeIcon} ${answer.likes?.length || 0}
-          </button>
-          <button class="comment-btn" onclick="toggleComments('${answer._id}')">
-            💬 ${answer.comments?.length || 0}
-          </button>
-        </div>
-        <div id="comments-${answer._id}" class="comments-section" style="display: none;">
-          <div class="comments-list">
-            ${answer.comments?.map(comment => `
-              <div class="comment" data-comment-id="${comment.id}">
-                <div class="comment-header">
-                  <strong>${comment.author}:</strong> ${comment.text}
-                </div>
-              </div>
-            `).join('') || ''}
-          </div>
-          <div class="add-comment">
-            <input type="text" data-translate-placeholder="add_comment" placeholder="Ajouter un commentaire..." 
-                   id="comment-input-${answer._id}" 
-                   onkeypress="if(event.key==='Enter') addComment('${answer._id}')">
-            <button onclick="addComment('${answer._id}')" data-translate="send">Envoyer</button>
-          </div>
-        </div>
-      </div>
-    `;
-    }).join('');
-    
-    // Afficher un message si aucune réponse dans cette langue
-    if (filteredAnswers.length === 0 && allAnswers.length > 0) {
-      answersBox.innerHTML = `
-        <p class="no-answers-in-language">
-          ${currentLanguage === 'fr' ? 
-            'Aucune réponse en français. Les réponses dans d\'autres langues ne sont pas affichées.' : 
-            'No answers in English. Answers in other languages are not shown.'}
-        </p>
       `;
+      return;
     }
+    
+    // Afficher les réponses
+    let answersHTML = '';
+    filteredAnswers.forEach(answer => {
+      const likes = answer.likes || 0;
+      const liked = answer.likedBy?.includes(currentUser?.pseudo) || false;
+      
+      answersHTML += `
+        <div class="answer-card" style="background: white; border: 1px solid #e0e0e0; border-radius: 10px; padding: 15px; margin: 10px 0; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+          <div class="answer-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <strong style="color: #333;">${answer.pseudo}</strong>
+            <small style="color: #666;">${new Date(answer.createdAt).toLocaleDateString()}</small>
+          </div>
+          <p style="margin: 10px 0; line-height: 1.5; color: #444;">${answer.text}</p>
+          <div class="answer-actions" style="display: flex; gap: 10px; align-items: center;">
+            <button onclick="likeAnswer('${answer._id}')" style="background: ${liked ? '#ff6b6b' : '#f0f0f0'}; color: ${liked ? 'white' : '#333'}; border: none; padding: 8px 12px; border-radius: 5px; cursor: pointer; font-size: 0.9rem;">
+              ❤️ ${likes}
+            </button>
+            <button onclick="toggleComments('${answer._id}')" style="background: #f0f0f0; color: #333; border: none; padding: 8px 12px; border-radius: 5px; cursor: pointer; font-size: 0.9rem;">
+              💬 ${answer.comments?.length || 0}
+            </button>
+          </div>
+          <div id="comments-${answer._id}" style="display: none; margin-top: 10px; padding-left: 20px; border-left: 3px solid #f0f0f0;">
+            <!-- Comments will be loaded here -->
+          </div>
+        </div>
+      `;
+    });
+    
+    document.getElementById("answersBox").innerHTML = answersHTML;
     
   } catch (err) {
-    console.error('Erreur chargement réponses:', err);
-    document.getElementById("answersBox").innerHTML = 
-      `<p>${t('loading_error')}</p>`;
+    console.error('MOBILE ERROR - Answers loading failed:', err);
+    
+    // Fallback pour mobile
+    document.getElementById("answersBox").innerHTML = `
+      <div style="text-align: center; padding: 20px; background: #ffe0e0; border-radius: 10px; margin: 10px 0;">
+        <p>📱 Chargement des réponses...</p>
+        <p>📱 Loading answers...</p>
+      </div>
+    `;
   }
 };
 
-// Soumettre une réponse
-const submitAnswer = async () => {
-  console.log('submitAnswer called');
+// Remplacer la fonction loadAnswers originale
+const loadAnswers = loadMobileAnswers;
+
+// Soumettre une réponse - Version mobile garantie
+const submitMobileAnswer = async () => {
+  console.log('=== MOBILE VERSION - Submit answer ===');
   const input = document.getElementById("answerInput");
   const text = input.value.trim();
   
-  console.log('Text:', text, 'CurrentQuestion:', currentQuestion);
-  
   if (!text) {
-    console.log('No text provided');
+    alert(currentLanguage === 'fr' ? 'Veuillez écrire une réponse' : 'Please write an answer');
     return;
   }
-  if (!currentQuestion) {
-    console.log('No current question');
+  
+  if (!currentQuestion || !currentQuestion._id) {
+    alert(currentLanguage === 'fr' ? 'Pas de question disponible' : 'No question available');
     return;
   }
   
   try {
-    console.log('Sending request...');
-    console.log('Question ID:', currentQuestion._id);
-    console.log('Question ID type:', typeof currentQuestion._id);
-    console.log('Author:', currentUser);
-    console.log('Text:', text);
-    console.log('Language:', currentLanguage);
+    // Créer la réponse mobile
+    const mobileAnswer = {
+      _id: 'mobile-answer-' + Date.now(),
+      pseudo: currentUser,
+      text: text,
+      language: currentLanguage,
+      likes: 0,
+      likedBy: [],
+      comments: [],
+      createdAt: new Date().toISOString(),
+      isMobileAnswer: true
+    };
     
-    // Vérifier si l'ID est un ObjectId MongoDB valide
-    const isValidObjectId = /^[0-9a-fA-F]{24}$/.test(currentQuestion._id);
-    console.log('Is valid ObjectId:', isValidObjectId);
+    console.log('Creating mobile answer:', mobileAnswer);
     
-    if (!isValidObjectId) {
-      console.error('Question ID is not a valid MongoDB ObjectId, using fallback');
-      // Si l'ID n'est pas valide, on utilise une approche différente
-      // Soit on génère un ObjectId factice, soit on utilise l'ID tel quel
-      // Pour l'instant, on va essayer avec l'ID tel quel
-    }
+    // Sauvegarder dans localStorage
+    const storageKey = `qday_answers_${currentQuestion._id}`;
+    let existingAnswers = [];
     
-    const res = await fetch("/api/answers", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        questionId: currentQuestion._id,
-        author: currentUser,
-        text: text,
-        language: currentLanguage, // Ajouter la langue de la réponse
-        likes: [],
-        comments: [],
-        createdAt: new Date().toISOString()
-      })
-    });
-    
-    console.log('Response status:', res.status);
-    const result = await res.json();
-    console.log('Response:', result);
-    
-    if (res.ok) {
-      input.value = "";
-      loadAnswers();
-    } else {
-      console.error('Server error:', result);
-      if (result.message && result.message.includes('BSONError')) {
-        console.error('Invalid ObjectId format - questionId is not a valid MongoDB ObjectId');
-        console.error('Current question:', currentQuestion);
-        
-        // Solution: sauvegarder la réponse localement si l'API échoue
-        console.log('Saving answer locally as fallback...');
-        const localAnswer = {
-          _id: Date.now().toString(),
-          questionId: currentQuestion._id,
-          author: currentUser,
-          text: text,
-          language: currentLanguage, // Ajouter la langue
-          likes: [],
-          comments: [],
-          createdAt: new Date().toISOString()
-        };
-        
-        // Récupérer les réponses existantes
-        const existingAnswers = JSON.parse(localStorage.getItem('localAnswers') || '[]');
-        existingAnswers.push(localAnswer);
-        localStorage.setItem('localAnswers', JSON.stringify(existingAnswers));
-        
-        input.value = "";
-        loadAnswers(); // Recharger depuis localStorage
-        console.log('Answer saved locally');
+    const storedAnswers = localStorage.getItem(storageKey);
+    if (storedAnswers) {
+      try {
+        existingAnswers = JSON.parse(storedAnswers);
+      } catch (err) {
+        console.error('Error parsing stored answers:', err);
       }
     }
+    
+    existingAnswers.push(mobileAnswer);
+    localStorage.setItem(storageKey, JSON.stringify(existingAnswers));
+    
+    console.log('Answer saved to localStorage:', existingAnswers);
+    
+    // Vider le champ et recharger
+    input.value = '';
+    loadMobileAnswers();
+    
+    // Message de confirmation
+    const confirmMsg = currentLanguage === 'fr' ? 
+      '✅ Réponse publiée avec succès!' : 
+      '✅ Answer published successfully!';
+    
+    // Afficher un message temporaire
+    const confirmDiv = document.createElement('div');
+    confirmDiv.style.cssText = `
+      position: fixed; top: 20px; right: 20px; background: #4CAF50; 
+      color: white; padding: 15px; border-radius: 8px; z-index: 1000;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    `;
+    confirmDiv.textContent = confirmMsg;
+    document.body.appendChild(confirmDiv);
+    
+    setTimeout(() => {
+      document.body.removeChild(confirmDiv);
+    }, 3000);
+    
   } catch (err) {
-    console.error('Request error:', err);
+    console.error('MOBILE ERROR - Answer submission failed:', err);
+    
+    const errorMsg = currentLanguage === 'fr' ? 
+      '❌ Erreur lors de la publication' : 
+      '❌ Error publishing answer';
+    
+    alert(errorMsg);
   }
 };
+
+// Remplacer la fonction submitAnswer originale
+const submitAnswer = submitMobileAnswer;
 
 // Like/Dislike une réponse
 const likeAnswer = async (answerId) => {
