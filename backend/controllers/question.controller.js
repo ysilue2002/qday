@@ -18,12 +18,36 @@ const createQuestion = async (req, res) => {
   }
 };
 
-// Récupérer la question du jour - Version simplifiée pour Vercel
+// Récupérer la question du jour - Version hybride (API + fallback)
 const getTodayQuestion = async (req, res) => {
   try {
     console.log('=== getTodayQuestion called ===');
+    console.log('MongoDB connected:', mongoose.connection.readyState === 1 ? 'YES' : 'NO');
     
-    // Retourner directement une question par défaut pour éviter les erreurs
+    // Essayer de récupérer la question depuis MongoDB
+    if (mongoose.connection.readyState === 1) {
+      console.log('MongoDB connected, searching for active question...');
+      const question = await Question.findOne({ active: true });
+      
+      if (question) {
+        console.log('Found active question:', question._id);
+        return res.json(question);
+      }
+      
+      console.log('No active question found, checking for any question...');
+      const anyQuestion = await Question.findOne().sort({ createdAt: -1 });
+      
+      if (anyQuestion) {
+        console.log('Found most recent question:', anyQuestion._id);
+        return res.json(anyQuestion);
+      }
+      
+      console.log('No questions found in database');
+    } else {
+      console.log('MongoDB not connected, skipping database queries');
+    }
+    
+    // Si aucune question trouvée ou MongoDB non connecté, créer une question par défaut
     const defaultQuestion = {
       _id: 'default-' + Date.now(),
       text: "Quelle est votre plus grande réussite cette année ?",
@@ -33,46 +57,13 @@ const getTodayQuestion = async (req, res) => {
       isDefault: true
     };
     
-    console.log('Returning default question (serverless-safe)');
-    return res.json(defaultQuestion);
+    console.log('Returning default question');
+    res.json(defaultQuestion);
     
-    // Code original désactivé pour éviter les erreurs serverless
-    /*
-    console.log('MongoDB connected:', mongoose.connection.readyState === 1 ? 'YES' : 'NO');
-    
-    console.log('Searching for active question...');
-    const question = await Question.findOne({ active: true });
-    
-    if (!question) {
-      console.log('No active question found, checking for any question...');
-      const anyQuestion = await Question.findOne().sort({ createdAt: -1 });
-      
-      if (!anyQuestion) {
-        console.log('No questions found at all - creating default question');
-        
-        const defaultQuestion = new Question({
-          text: "Quelle est votre plus grande réussite cette année ?",
-          category: "Réflexion",
-          active: true,
-          createdAt: new Date()
-        });
-        
-        await defaultQuestion.save();
-        console.log('Default question created:', defaultQuestion._id);
-        return res.json(defaultQuestion);
-      }
-      
-      console.log('Found most recent question:', anyQuestion._id);
-      return res.json(anyQuestion);
-    }
-    
-    console.log('Found active question:', question._id);
-    res.json(question);
-    */
   } catch (err) {
     console.error('Error in getTodayQuestion:', err);
     
-    // Retourner une question de secours même en cas d'erreur
+    // En cas d'erreur grave, retourner une question de secours
     const fallbackQuestion = {
       _id: 'fallback-' + Date.now(),
       text: "Quelle est votre plus grande réussite cette année ?",

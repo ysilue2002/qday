@@ -45,12 +45,50 @@ const loadAds = async () => {
   }
 };
 
-// Charger la question du jour - Version frontend autonome
+// Charger la question du jour - Version hybride (API + fallback)
 const loadTodayQuestion = async () => {
   try {
-    console.log('=== Loading today question (frontend mode) ===');
+    console.log('=== Loading today question (hybrid mode) ===');
     
-    // Question par défaut directement dans le frontend - pas d'API
+    // Essayer l'API en premier pour récupérer vos questions
+    try {
+      console.log('Trying API first...');
+      const res = await fetch("/api/questions/today");
+      console.log('API Response status:', res.status);
+      
+      if (res.ok) {
+        const apiQuestion = await res.json();
+        console.log('API Response:', apiQuestion);
+        
+        if (apiQuestion && apiQuestion.text) {
+          currentQuestion = apiQuestion;
+          console.log('Using API question:', currentQuestion);
+          
+          // Afficher la question de l'API
+          const questionText = getQuestionText(currentQuestion);
+          const questionDate = currentQuestion.date || currentQuestion.createdAt || new Date().toISOString();
+          
+          document.getElementById("questionBox").innerHTML = `
+            <div class="question-card">
+              <h3>${questionText}</h3>
+              <small>${currentQuestion.category} | ${new Date(questionDate).toLocaleDateString()}</small>
+              <div style="color: #666; font-size: 0.8rem; margin-top: 0.5rem;">📝 Question personnalisée</div>
+            </div>
+          `;
+          
+          loadAnswers();
+          return;
+        }
+      } else {
+        const errorText = await res.text();
+        console.error('API Error:', res.status, errorText);
+      }
+    } catch (apiErr) {
+      console.error('API request failed:', apiErr);
+    }
+    
+    // Si l'API échoue, utiliser la question par défaut
+    console.log('API failed, using frontend default question...');
     const defaultQuestion = {
       _id: 'frontend-default-' + Date.now(),
       text: "Quelle est votre plus grande réussite cette année ?",
@@ -63,7 +101,7 @@ const loadTodayQuestion = async () => {
     console.log('Using frontend default question:', defaultQuestion);
     currentQuestion = defaultQuestion;
     
-    // Afficher la question avec le texte selon la langue
+    // Afficher la question par défaut
     const questionText = getQuestionText(currentQuestion);
     const questionDate = currentQuestion.date || currentQuestion.createdAt || new Date().toISOString();
     
@@ -71,99 +109,12 @@ const loadTodayQuestion = async () => {
       <div class="question-card">
         <h3>${questionText}</h3>
         <small>${currentQuestion.category} | ${new Date(questionDate).toLocaleDateString()}</small>
-        <div style="color: #666; font-size: 0.8rem; margin-top: 0.5rem;">🌟 Question du jour</div>
+        <div style="color: #666; font-size: 0.8rem; margin-top: 0.5rem;">🌟 Question par défaut</div>
       </div>
     `;
     
     // Charger les réponses (mode localStorage)
     loadAnswers();
-    
-    return;
-    
-    /*
-    // Code API désactivé - utilisation du frontend autonome
-    const storedQuestions = localStorage.getItem('qdayQuestions');
-    let allQuestions = [];
-    
-    if (storedQuestions) {
-      allQuestions = JSON.parse(storedQuestions);
-      console.log('Loaded from localStorage:', allQuestions);
-    }
-    
-    if (allQuestions.length === 0) {
-      console.log('No questions in localStorage, trying API...');
-      try {
-        const res = await fetch("/api/questions/today");
-        console.log('API Response status:', res.status);
-        
-        if (res.ok) {
-          const apiQuestion = await res.json();
-          console.log('API Response:', apiQuestion);
-          
-          if (apiQuestion) {
-            allQuestions = [apiQuestion];
-            localStorage.setItem('qdayQuestions', JSON.stringify(allQuestions));
-            console.log('Saved to localStorage:', allQuestions);
-          }
-        } else {
-          const errorText = await res.text();
-          console.error('API Error:', res.status, errorText);
-        }
-      } catch (apiErr) {
-        console.error('API request failed:', apiErr);
-      }
-    }
-    
-    const now = new Date();
-    console.log('Current date:', now);
-    console.log('All questions available:', allQuestions);
-    
-    const todayQuestion = allQuestions.find(q => {
-      console.log('Checking question:', q);
-      
-      if (!q.active && !q.isFallback) {
-        console.log('Question not active and not fallback');
-        return false;
-      }
-      
-      if (!q.scheduledDate) {
-        console.log('Question has no scheduled date, showing today');
-        return true;
-      }
-      
-      const scheduledDate = new Date(q.scheduledDate);
-      const isToday = scheduledDate.toDateString() === now.toDateString();
-      console.log('Scheduled date:', scheduledDate, 'Is today:', isToday);
-      
-      return isToday;
-    });
-    
-    console.log('Today question found:', todayQuestion);
-    
-    if (todayQuestion) {
-      currentQuestion = todayQuestion;
-      
-      const questionText = getQuestionText(currentQuestion);
-      const questionDate = currentQuestion.date || currentQuestion.createdAt || new Date().toISOString();
-      
-      document.getElementById("questionBox").innerHTML = `
-        <div class="question-card">
-          <h3>${questionText}</h3>
-          <small>${currentQuestion.category} | ${new Date(questionDate).toLocaleDateString()}</small>
-          ${currentQuestion.isDefault ? '<div style="color: #666; font-size: 0.8rem; margin-top: 0.5rem;">✨ Question par défaut</div>' : ''}
-          ${currentQuestion.isFallback ? '<div style="color: #666; font-size: 0.8rem; margin-top: 0.5rem;">⚠️ Question par défaut</div>' : ''}
-        </div>
-      `;
-      
-      loadAnswers();
-    } else {
-      console.log('No today question found, showing message');
-      document.getElementById("questionBox").innerHTML = 
-        `<p>${t('no_active_question')}</p>`;
-      document.getElementById("answersBox").innerHTML = 
-        `<p>${t('no_answers')}</p>`;
-    }
-    */
     
   } catch (err) {
     console.error('Erreur chargement question:', err);
