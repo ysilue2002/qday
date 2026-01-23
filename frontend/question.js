@@ -45,61 +45,157 @@ const loadAds = async () => {
   }
 };
 
-// Charger la question du jour - Version mobile garantie
+// Charger la question du jour - Version API unifiée
 const loadTodayQuestion = async () => {
   try {
-    console.log('=== MOBILE VERSION - Loading today question ===');
+    console.log('=== UNIFIED VERSION - Loading today question from API ===');
     
-    // Question garantie pour mobile - aucune dépendance
-    const mobileQuestion = {
-      _id: 'mobile-guaranteed-' + Date.now(),
+    // ÉTAPE 1: Essayer l'API MongoDB (questions de l'admin)
+    try {
+      console.log('Trying API for admin questions...');
+      const res = await fetch("/api/questions/today");
+      console.log('API Response status:', res.status);
+      
+      if (res.ok) {
+        const apiQuestion = await res.json();
+        console.log('API Response:', apiQuestion);
+        
+        if (apiQuestion && apiQuestion.text) {
+          currentQuestion = apiQuestion;
+          
+          const questionText = getQuestionText(currentQuestion);
+          const questionDate = currentQuestion.date || currentQuestion.createdAt || new Date().toISOString();
+          
+          document.getElementById("questionBox").innerHTML = `
+            <div class="question-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 15px; margin: 10px 0; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
+              <h3 style="margin: 0 0 10px 0; font-size: 1.2em; line-height: 1.4;">${questionText}</h3>
+              <small style="opacity: 0.9;">${currentQuestion.category} | ${new Date(questionDate).toLocaleDateString()}</small>
+              <div style="margin-top: 10px; padding: 8px; background: rgba(255,255,255,0.2); border-radius: 8px; font-size: 0.9rem;">
+                🌐 Question de l'admin
+              </div>
+            </div>
+          `;
+          
+          loadUnifiedAnswers();
+          return;
+        }
+      } else {
+        const errorText = await res.text();
+        console.error('API Error:', res.status, errorText);
+      }
+    } catch (apiErr) {
+      console.error('API request failed:', apiErr);
+    }
+    
+    console.log('API failed, checking localStorage for admin questions...');
+    
+    // ÉTAPE 2: Essayer localStorage (questions sauvegardées par l'admin)
+    const storedQuestions = localStorage.getItem('qdayQuestions');
+    if (storedQuestions) {
+      try {
+        const allQuestions = JSON.parse(storedQuestions);
+        console.log('Found questions in localStorage:', allQuestions);
+        
+        if (allQuestions.length > 0) {
+          // Chercher une question active
+          const activeQuestion = allQuestions.find(q => q.active);
+          if (activeQuestion) {
+            console.log('Found active question in localStorage:', activeQuestion);
+            currentQuestion = activeQuestion;
+            
+            const questionText = getQuestionText(currentQuestion);
+            const questionDate = currentQuestion.date || currentQuestion.createdAt || new Date().toISOString();
+            
+            document.getElementById("questionBox").innerHTML = `
+              <div class="question-card" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 20px; border-radius: 15px; margin: 10px 0; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
+                <h3 style="margin: 0 0 10px 0; font-size: 1.2em; line-height: 1.4;">${questionText}</h3>
+                <small style="opacity: 0.9;">${currentQuestion.category} | ${new Date(questionDate).toLocaleDateString()}</small>
+                <div style="margin-top: 10px; padding: 8px; background: rgba(255,255,255,0.2); border-radius: 8px; font-size: 0.9rem;">
+                  💾 Question locale (admin)
+                </div>
+              </div>
+            `;
+            
+            loadUnifiedAnswers();
+            return;
+          }
+          
+          // Prendre la plus récente
+          const recentQuestion = allQuestions.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))[0];
+          if (recentQuestion) {
+            console.log('Using most recent question from localStorage:', recentQuestion);
+            currentQuestion = recentQuestion;
+            
+            const questionText = getQuestionText(currentQuestion);
+            const questionDate = currentQuestion.date || currentQuestion.createdAt || new Date().toISOString();
+            
+            document.getElementById("questionBox").innerHTML = `
+              <div class="question-card" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 20px; border-radius: 15px; margin: 10px 0; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
+                <h3 style="margin: 0 0 10px 0; font-size: 1.2em; line-height: 1.4;">${questionText}</h3>
+                <small style="opacity: 0.9;">${currentQuestion.category} | ${new Date(questionDate).toLocaleDateString()}</small>
+                <div style="margin-top: 10px; padding: 8px; background: rgba(255,255,255,0.2); border-radius: 8px; font-size: 0.9rem;">
+                  💾 Question locale (admin)
+                </div>
+              </div>
+            `;
+            
+            loadUnifiedAnswers();
+            return;
+          }
+        }
+      } catch (parseErr) {
+        console.error('Error parsing localStorage questions:', parseErr);
+      }
+    }
+    
+    // ÉTAPE 3: Question par défaut finale
+    console.log('No admin questions found, using default question...');
+    const defaultQuestion = {
+      _id: 'default-' + Date.now(),
       text: currentLang === 'fr' ? "Quelle est votre plus grande réussite cette année ?" : "What is your greatest achievement this year?",
       text_fr: "Quelle est votre plus grande réussite cette année ?",
       text_en: "What is your greatest achievement this year?",
       category: "Réflexion / Reflection",
       active: true,
       createdAt: new Date(),
-      isMobileGuaranteed: true
+      isDefault: true
     };
     
-    console.log('Using mobile guaranteed question:', mobileQuestion);
-    currentQuestion = mobileQuestion;
+    currentQuestion = defaultQuestion;
     
-    // Affichage garanti pour mobile
     const questionText = getQuestionText(currentQuestion);
     const questionDate = currentQuestion.date || currentQuestion.createdAt || new Date().toISOString();
     
     document.getElementById("questionBox").innerHTML = `
-      <div class="question-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 15px; margin: 10px 0; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
+      <div class="question-card" style="background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%); color: white; padding: 20px; border-radius: 15px; margin: 10px 0; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
         <h3 style="margin: 0 0 10px 0; font-size: 1.2em; line-height: 1.4;">${questionText}</h3>
         <small style="opacity: 0.9;">${currentQuestion.category} | ${new Date(questionDate).toLocaleDateString()}</small>
         <div style="margin-top: 10px; padding: 8px; background: rgba(255,255,255,0.2); border-radius: 8px; font-size: 0.9rem;">
-          📱 Question mobile garantie
+          🌟 Question par défaut
         </div>
       </div>
     `;
     
-    // Charger les réponses en mode mobile
-    loadMobileAnswers();
+    loadUnifiedAnswers();
     
   } catch (err) {
-    console.error('MOBILE ERROR - Question loading failed:', err);
+    console.error('UNIFIED ERROR - Question loading failed:', err);
     
-    // Fallback ultime pour mobile
+    // Fallback ultime
     document.getElementById("questionBox").innerHTML = `
-      <div class="question-card" style="background: #ff6b6b; color: white; padding: 20px; border-radius: 15px; margin: 10px 0;">
-        <h3>Question du jour</h3>
+      <div class="question-card" style="background: #dc3545; color: white; padding: 20px; border-radius: 15px; margin: 10px 0;">
+        <h3>❌ Erreur de chargement</h3>
         <p>Quelle est votre plus grande réussite cette année ?</p>
-        <small>Essayez de répondre ci-dessous 👇</small>
+        <small>Veuillez réessayer plus tard</small>
       </div>
     `;
   }
 };
 
-// Charger les réponses - Version mobile garantie
-const loadMobileAnswers = async () => {
+// Charger les réponses - Version API unifiée
+const loadUnifiedAnswers = async () => {
   try {
-    console.log('=== MOBILE VERSION - Loading answers ===');
+    console.log('=== UNIFIED VERSION - Loading answers from API ===');
     
     if (!currentQuestion || !currentQuestion._id) {
       console.log('No current question, showing empty answers');
@@ -112,89 +208,129 @@ const loadMobileAnswers = async () => {
       return;
     }
     
-    // Essayer de charger les réponses depuis localStorage
-    const storedAnswers = localStorage.getItem(`qday_answers_${currentQuestion._id}`);
-    let answers = [];
+    // ÉTAPE 1: Essayer l'API MongoDB
+    try {
+      console.log('Trying API for answers...');
+      const res = await fetch(`/api/answers/question/${currentQuestion._id}`);
+      console.log('Answers API Response status:', res.status);
+      
+      if (res.ok) {
+        const apiAnswers = await res.json();
+        console.log('Loaded answers from API:', apiAnswers);
+        
+        if (Array.isArray(apiAnswers) && apiAnswers.length > 0) {
+          // Filtrer par langue
+          const filteredAnswers = apiAnswers.filter(answer => {
+            if (currentLanguage === 'fr') {
+              return !answer.language || answer.language === 'fr';
+            } else {
+              return answer.language === 'en';
+            }
+          });
+          
+          console.log('Filtered answers:', filteredAnswers);
+          
+          if (filteredAnswers.length > 0) {
+            displayAnswers(filteredAnswers);
+            return;
+          }
+        }
+      }
+    } catch (apiErr) {
+      console.error('API answers request failed:', apiErr);
+    }
+    
+    console.log('API failed, checking localStorage for answers...');
+    
+    // ÉTAPE 2: Essayer localStorage
+    const storageKey = `qday_answers_${currentQuestion._id}`;
+    const storedAnswers = localStorage.getItem(storageKey);
     
     if (storedAnswers) {
       try {
-        answers = JSON.parse(storedAnswers);
-        console.log('Loaded answers from localStorage:', answers);
-      } catch (err) {
-        console.error('Error parsing stored answers:', err);
+        const localAnswers = JSON.parse(storedAnswers);
+        console.log('Found answers in localStorage:', localAnswers);
+        
+        if (localAnswers.length > 0) {
+          // Filtrer par langue
+          const filteredAnswers = localAnswers.filter(answer => {
+            if (currentLanguage === 'fr') {
+              return !answer.language || answer.language === 'fr';
+            } else {
+              return answer.language === 'en';
+            }
+          });
+          
+          if (filteredAnswers.length > 0) {
+            displayAnswers(filteredAnswers);
+            return;
+          }
+        }
+      } catch (parseErr) {
+        console.error('Error parsing stored answers:', parseErr);
       }
     }
     
-    // Filtrer par langue
-    const filteredAnswers = answers.filter(answer => {
-      if (currentLanguage === 'fr') {
-        return !answer.language || answer.language === 'fr';
-      } else {
-        return answer.language === 'en';
-      }
-    });
-    
-    console.log('Filtered answers:', filteredAnswers);
-    
-    if (filteredAnswers.length === 0) {
-      document.getElementById("answersBox").innerHTML = `
-        <div style="text-align: center; padding: 20px; color: #666; background: #f8f9fa; border-radius: 10px; margin: 10px 0;">
-          <p>🌟 Soyez le premier à répondre !</p>
-          <p>🌟 Be the first to answer!</p>
-        </div>
-      `;
-      return;
-    }
-    
-    // Afficher les réponses
-    let answersHTML = '';
-    filteredAnswers.forEach(answer => {
-      const likes = answer.likes || 0;
-      const liked = answer.likedBy?.includes(currentUser?.pseudo) || false;
-      
-      answersHTML += `
-        <div class="answer-card" style="background: white; border: 1px solid #e0e0e0; border-radius: 10px; padding: 15px; margin: 10px 0; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
-          <div class="answer-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-            <strong style="color: #333;">${answer.pseudo}</strong>
-            <small style="color: #666;">${new Date(answer.createdAt).toLocaleDateString()}</small>
-          </div>
-          <p style="margin: 10px 0; line-height: 1.5; color: #444;">${answer.text}</p>
-          <div class="answer-actions" style="display: flex; gap: 10px; align-items: center;">
-            <button onclick="likeAnswer('${answer._id}')" style="background: ${liked ? '#ff6b6b' : '#f0f0f0'}; color: ${liked ? 'white' : '#333'}; border: none; padding: 8px 12px; border-radius: 5px; cursor: pointer; font-size: 0.9rem;">
-              ❤️ ${likes}
-            </button>
-            <button onclick="toggleComments('${answer._id}')" style="background: #f0f0f0; color: #333; border: none; padding: 8px 12px; border-radius: 5px; cursor: pointer; font-size: 0.9rem;">
-              💬 ${answer.comments?.length || 0}
-            </button>
-          </div>
-          <div id="comments-${answer._id}" style="display: none; margin-top: 10px; padding-left: 20px; border-left: 3px solid #f0f0f0;">
-            <!-- Comments will be loaded here -->
-          </div>
-        </div>
-      `;
-    });
-    
-    document.getElementById("answersBox").innerHTML = answersHTML;
+    // ÉTAPE 3: Aucune réponse trouvée
+    document.getElementById("answersBox").innerHTML = `
+      <div style="text-align: center; padding: 20px; color: #666; background: #f8f9fa; border-radius: 10px; margin: 10px 0;">
+        <p>🌟 Soyez le premier à répondre !</p>
+        <p>🌟 Be the first to answer!</p>
+      </div>
+    `;
     
   } catch (err) {
-    console.error('MOBILE ERROR - Answers loading failed:', err);
+    console.error('UNIFIED ERROR - Answers loading failed:', err);
     
-    // Fallback pour mobile
     document.getElementById("answersBox").innerHTML = `
       <div style="text-align: center; padding: 20px; background: #ffe0e0; border-radius: 10px; margin: 10px 0;">
-        <p>📱 Chargement des réponses...</p>
-        <p>📱 Loading answers...</p>
+        <p>❌ Erreur de chargement des réponses</p>
+        <p>❌ Error loading answers</p>
       </div>
     `;
   }
 };
 
-// Remplacer la fonction loadAnswers originale
-const loadAnswers = loadMobileAnswers;
+// Afficher les réponses
+const displayAnswers = (answers) => {
+  let answersHTML = '';
+  
+  answers.forEach(answer => {
+    const likes = answer.likes || 0;
+    const liked = answer.likedBy?.includes(currentUser?.pseudo) || false;
+    
+    answersHTML += `
+      <div class="answer-card" style="background: white; border: 1px solid #e0e0e0; border-radius: 10px; padding: 15px; margin: 10px 0; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+        <div class="answer-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+          <strong style="color: #333;">${answer.pseudo || answer.author}</strong>
+          <small style="color: #666;">${new Date(answer.createdAt).toLocaleDateString()}</small>
+        </div>
+        <p style="margin: 10px 0; line-height: 1.5; color: #444;">${answer.text}</p>
+        <div class="answer-actions" style="display: flex; gap: 10px; align-items: center;">
+          <button onclick="likeAnswer('${answer._id}')" style="background: ${liked ? '#ff6b6b' : '#f0f0f0'}; color: ${liked ? 'white' : '#333'}; border: none; padding: 8px 12px; border-radius: 5px; cursor: pointer; font-size: 0.9rem;">
+            ❤️ ${likes}
+          </button>
+          <button onclick="toggleComments('${answer._id}')" style="background: #f0f0f0; color: #333; border: none; padding: 8px 12px; border-radius: 5px; cursor: pointer; font-size: 0.9rem;">
+            💬 ${answer.comments?.length || 0}
+          </button>
+        </div>
+        <div id="comments-${answer._id}" style="display: none; margin-top: 10px; padding-left: 20px; border-left: 3px solid #f0f0f0;">
+          <!-- Comments will be loaded here -->
+        </div>
+      </div>
+    `;
+  });
+  
+  document.getElementById("answersBox").innerHTML = answersHTML;
+};
 
-// Soumettre une réponse - Version mobile garantie
-const submitMobileAnswer = async () => {
-  console.log('=== MOBILE VERSION - Submit answer ===');
+// Remplacer les fonctions originales
+const loadAnswers = loadUnifiedAnswers;
+const loadMobileAnswers = loadUnifiedAnswers;
+
+// Soumettre une réponse - Version API unifiée
+const submitUnifiedAnswer = async () => {
+  console.log('=== UNIFIED VERSION - Submit answer to API ===');
   const input = document.getElementById("answerInput");
   const text = input.value.trim();
   
@@ -209,22 +345,48 @@ const submitMobileAnswer = async () => {
   }
   
   try {
-    // Créer la réponse mobile
-    const mobileAnswer = {
-      _id: 'mobile-answer-' + Date.now(),
-      pseudo: currentUser,
-      text: text,
-      language: currentLanguage,
-      likes: 0,
-      likedBy: [],
-      comments: [],
-      createdAt: new Date().toISOString(),
-      isMobileAnswer: true
-    };
+    // ÉTAPE 1: Essayer l'API MongoDB
+    try {
+      console.log('Trying API to submit answer...');
+      const res = await fetch("/api/answers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          questionId: currentQuestion._id,
+          author: currentUser,
+          text: text,
+          language: currentLanguage,
+          likes: [],
+          comments: [],
+          createdAt: new Date().toISOString()
+        })
+      });
+      
+      console.log('Submit API Response status:', res.status);
+      
+      if (res.ok) {
+        console.log('Answer submitted to API successfully');
+        input.value = '';
+        loadUnifiedAnswers();
+        
+        // Message de confirmation
+        const confirmMsg = currentLanguage === 'fr' ? 
+          '✅ Réponse publiée avec succès!' : 
+          '✅ Answer published successfully!';
+        
+        showNotification(confirmMsg, 'success');
+        return;
+      } else {
+        const errorData = await res.json();
+        console.error('API submit error:', errorData);
+      }
+    } catch (apiErr) {
+      console.error('API submit request failed:', apiErr);
+    }
     
-    console.log('Creating mobile answer:', mobileAnswer);
+    console.log('API failed, saving to localStorage...');
     
-    // Sauvegarder dans localStorage
+    // ÉTAPE 2: Sauvegarder dans localStorage
     const storageKey = `qday_answers_${currentQuestion._id}`;
     let existingAnswers = [];
     
@@ -237,47 +399,85 @@ const submitMobileAnswer = async () => {
       }
     }
     
-    existingAnswers.push(mobileAnswer);
+    const localAnswer = {
+      _id: 'local-answer-' + Date.now(),
+      pseudo: currentUser,
+      text: text,
+      language: currentLanguage,
+      likes: 0,
+      likedBy: [],
+      comments: [],
+      createdAt: new Date().toISOString(),
+      isLocalAnswer: true
+    };
+    
+    existingAnswers.push(localAnswer);
     localStorage.setItem(storageKey, JSON.stringify(existingAnswers));
     
     console.log('Answer saved to localStorage:', existingAnswers);
     
     // Vider le champ et recharger
     input.value = '';
-    loadMobileAnswers();
+    loadUnifiedAnswers();
     
     // Message de confirmation
     const confirmMsg = currentLanguage === 'fr' ? 
-      '✅ Réponse publiée avec succès!' : 
-      '✅ Answer published successfully!';
+      '✅ Réponse sauvegardée localement!' : 
+      '✅ Answer saved locally!';
     
-    // Afficher un message temporaire
-    const confirmDiv = document.createElement('div');
-    confirmDiv.style.cssText = `
-      position: fixed; top: 20px; right: 20px; background: #4CAF50; 
-      color: white; padding: 15px; border-radius: 8px; z-index: 1000;
-      box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-    `;
-    confirmDiv.textContent = confirmMsg;
-    document.body.appendChild(confirmDiv);
-    
-    setTimeout(() => {
-      document.body.removeChild(confirmDiv);
-    }, 3000);
+    showNotification(confirmMsg, 'warning');
     
   } catch (err) {
-    console.error('MOBILE ERROR - Answer submission failed:', err);
+    console.error('UNIFIED ERROR - Answer submission failed:', err);
     
     const errorMsg = currentLanguage === 'fr' ? 
       '❌ Erreur lors de la publication' : 
       '❌ Error publishing answer';
     
-    alert(errorMsg);
+    showNotification(errorMsg, 'error');
   }
 };
 
+// Afficher une notification
+const showNotification = (message, type = 'info') => {
+  const colors = {
+    success: '#4CAF50',
+    warning: '#ff9800',
+    error: '#f44336',
+    info: '#2196F3'
+  };
+  
+  const notification = document.createElement('div');
+  notification.style.cssText = `
+    position: fixed; top: 20px; right: 20px; background: ${colors[type]}; 
+    color: white; padding: 15px 20px; border-radius: 8px; z-index: 1000;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2); max-width: 300px;
+    font-size: 0.9rem; animation: slideIn 0.3s ease;
+  `;
+  notification.textContent = message;
+  
+  // Ajouter l'animation
+  const style = document.createElement('style');
+  style.textContent = `
+    @keyframes slideIn {
+      from { transform: translateX(100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+  `;
+  document.head.appendChild(style);
+  
+  document.body.appendChild(notification);
+  
+  setTimeout(() => {
+    notification.style.animation = 'slideIn 0.3s ease reverse';
+    setTimeout(() => {
+      document.body.removeChild(notification);
+    }, 300);
+  }, 3000);
+};
+
 // Remplacer la fonction submitAnswer originale
-const submitAnswer = submitMobileAnswer;
+const submitAnswer = submitUnifiedAnswer;
 
 // Like/Dislike une réponse
 const likeAnswer = async (answerId) => {
