@@ -45,70 +45,14 @@ const loadAds = async () => {
   }
 };
 
-// Charger la question du jour - Version localStorage prioritaire
+// Charger la question du jour - Version API prioritaire (pour partage)
 const loadTodayQuestion = async () => {
   try {
-    console.log('=== Loading today question (localStorage first) ===');
+    console.log('=== Loading today question (API first for sharing) ===');
     
-    // ÉTAPE 1: Essayer localStorage en premier (priorité absolue)
-    const storedQuestions = localStorage.getItem('qdayQuestions');
-    if (storedQuestions) {
-      try {
-        const allQuestions = JSON.parse(storedQuestions);
-        console.log('Loaded from localStorage:', allQuestions);
-        
-        if (allQuestions.length > 0) {
-          // Chercher une question active
-          const activeQuestion = allQuestions.find(q => q.active);
-          if (activeQuestion) {
-            console.log('Found active question in localStorage:', activeQuestion);
-            currentQuestion = activeQuestion;
-            
-            const questionText = getQuestionText(currentQuestion);
-            const questionDate = currentQuestion.date || currentQuestion.createdAt || new Date().toISOString();
-            
-            document.getElementById("questionBox").innerHTML = `
-              <div class="question-card">
-                <h3>${questionText}</h3>
-                <small>${currentQuestion.category} | ${new Date(questionDate).toLocaleDateString()}</small>
-                <div style="color: #666; font-size: 0.8rem; margin-top: 0.5rem;">💾 Question locale</div>
-              </div>
-            `;
-            
-            loadAnswers();
-            return;
-          }
-          
-          // Si pas de question active, prendre la plus récente
-          const recentQuestion = allQuestions.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))[0];
-          if (recentQuestion) {
-            console.log('Using most recent question from localStorage:', recentQuestion);
-            currentQuestion = recentQuestion;
-            
-            const questionText = getQuestionText(currentQuestion);
-            const questionDate = currentQuestion.date || currentQuestion.createdAt || new Date().toISOString();
-            
-            document.getElementById("questionBox").innerHTML = `
-              <div class="question-card">
-                <h3>${questionText}</h3>
-                <small>${currentQuestion.category} | ${new Date(questionDate).toLocaleDateString()}</small>
-                <div style="color: #666; font-size: 0.8rem; margin-top: 0.5rem;">💾 Question locale</div>
-              </div>
-            `;
-            
-            loadAnswers();
-            return;
-          }
-        }
-      } catch (parseErr) {
-        console.error('Error parsing localStorage questions:', parseErr);
-      }
-    }
-    
-    console.log('No valid questions in localStorage, trying API...');
-    
-    // ÉTAPE 2: Si localStorage vide, essayer l'API
+    // ÉTAPE 1: Essayer l'API en premier (pour que tout le monde voie la même question)
     try {
+      console.log('Trying API first (shared questions)...');
       const res = await fetch("/api/questions/today");
       console.log('API Response status:', res.status);
       
@@ -126,16 +70,54 @@ const loadTodayQuestion = async () => {
             <div class="question-card">
               <h3>${questionText}</h3>
               <small>${currentQuestion.category} | ${new Date(questionDate).toLocaleDateString()}</small>
-              <div style="color: #666; font-size: 0.8rem; margin-top: 0.5rem;">🌐 Question API</div>
+              <div style="color: #666; font-size: 0.8rem; margin-top: 0.5rem;">🌐 Question partagée</div>
             </div>
           `;
           
           loadAnswers();
           return;
         }
+      } else {
+        const errorText = await res.text();
+        console.error('API Error:', res.status, errorText);
       }
     } catch (apiErr) {
       console.error('API request failed:', apiErr);
+    }
+    
+    console.log('API failed, trying localStorage as backup...');
+    
+    // ÉTAPE 2: Si API échoue, essayer localStorage (backup)
+    const storedQuestions = localStorage.getItem('qdayQuestions');
+    if (storedQuestions) {
+      try {
+        const allQuestions = JSON.parse(storedQuestions);
+        console.log('Loaded from localStorage as backup:', allQuestions);
+        
+        if (allQuestions.length > 0) {
+          const activeQuestion = allQuestions.find(q => q.active);
+          if (activeQuestion) {
+            console.log('Found active question in localStorage:', activeQuestion);
+            currentQuestion = activeQuestion;
+            
+            const questionText = getQuestionText(currentQuestion);
+            const questionDate = currentQuestion.date || currentQuestion.createdAt || new Date().toISOString();
+            
+            document.getElementById("questionBox").innerHTML = `
+              <div class="question-card">
+                <h3>${questionText}</h3>
+                <small>${currentQuestion.category} | ${new Date(questionDate).toLocaleDateString()}</small>
+                <div style="color: #666; font-size: 0.8rem; margin-top: 0.5rem;">💾 Question locale (backup)</div>
+              </div>
+            `;
+            
+            loadAnswers();
+            return;
+          }
+        }
+      } catch (parseErr) {
+        console.error('Error parsing localStorage questions:', parseErr);
+      }
     }
     
     // ÉTAPE 3: Question par défaut finale
