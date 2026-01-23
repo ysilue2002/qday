@@ -20,10 +20,27 @@ const createQuestion = async (req, res) => {
 // Récupérer la question du jour
 const getTodayQuestion = async (req, res) => {
   try {
+    console.log('Searching for active question...');
     const question = await Question.findOne({ active: true });
-    if (!question) return res.status(404).json({ message: "Aucune question active" });
+    
+    if (!question) {
+      console.log('No active question found, checking for any question...');
+      // Si aucune question active, prendre la plus récente
+      const anyQuestion = await Question.findOne().sort({ createdAt: -1 });
+      
+      if (!anyQuestion) {
+        console.log('No questions found at all');
+        return res.status(404).json({ message: "Aucune question trouvée" });
+      }
+      
+      console.log('Found most recent question:', anyQuestion._id);
+      return res.json(anyQuestion);
+    }
+    
+    console.log('Found active question:', question._id);
     res.json(question);
   } catch (err) {
+    console.error('Error in getTodayQuestion:', err);
     res.status(500).json({ message: err.message });
   }
 };
