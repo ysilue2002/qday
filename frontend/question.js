@@ -1,9 +1,13 @@
 // Variables globales
-let currentUser = "";
+let currentUser = '';
 let currentQuestion = null;
-let currentAds = {};
+let currentLanguage = localStorage.getItem('qdayLanguage') || 'fr';
+let currentLang = currentLanguage; // Pour compatibilité
 
-// Vérifier si l'utilisateur est connecté
+// Variables globales pour le temps réel
+let eventSource = null;
+let isRealTimeEnabled = true;
+
 const checkAuth = () => {
   const pseudo = localStorage.getItem("pseudo");
   if (!pseudo) {
@@ -462,10 +466,6 @@ const submitUnifiedAnswer = async () => {
   }
 };
 
-// Variables globales pour le temps réel
-let eventSource = null;
-let isRealTimeEnabled = true;
-
 // Démarrer le stream en temps réel
 const startRealTimeStream = () => {
   if (!currentQuestion || !currentQuestion._id) {
@@ -660,6 +660,44 @@ const addRealTimeStyles = () => {
     }
   `;
   document.head.appendChild(style);
+};
+
+// Afficher une notification
+const showNotification = (message, type = 'info') => {
+  const colors = {
+    success: '#4CAF50',
+    warning: '#ff9800',
+    error: '#f44336',
+    info: '#2196F3'
+  };
+  
+  const notification = document.createElement('div');
+  notification.style.cssText = `
+    position: fixed; top: 20px; right: 20px; background: ${colors[type]}; 
+    color: white; padding: 15px 20px; border-radius: 8px; z-index: 1000;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2); max-width: 300px;
+    font-size: 0.9rem; animation: slideIn 0.3s ease;
+  `;
+  notification.textContent = message;
+  
+  // Ajouter l'animation
+  const style = document.createElement('style');
+  style.textContent = `
+    @keyframes slideIn {
+      from { transform: translateX(100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+  `;
+  document.head.appendChild(style);
+  
+  document.body.appendChild(notification);
+  
+  setTimeout(() => {
+    notification.style.animation = 'slideIn 0.3s ease reverse';
+    setTimeout(() => {
+      document.body.removeChild(notification);
+    }, 300);
+  }, 3000);
 };
 
 // Remplacer la fonction submitAnswer originale
