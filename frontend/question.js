@@ -898,7 +898,7 @@ document.addEventListener("DOMContentLoaded", () => {
   loadStoredAds();
   
   // Charger l'utilisateur connecté
-  const savedUser = localStorage.getItem('qdayUser');
+  const savedUser = localStorage.getItem('qdayUser') || localStorage.getItem('pseudo');
   if (savedUser) {
     currentUser = savedUser;
     console.log('Utilisateur restauré:', currentUser);
@@ -907,6 +907,8 @@ document.addEventListener("DOMContentLoaded", () => {
     loadTodayQuestion();
   } else {
     console.log('Aucun utilisateur connecté');
+    // Rediriger vers la page de connexion
+    window.location.href = "index.html";
   }
   
   // Configurer le changement de langue
