@@ -118,21 +118,34 @@ const submitAnswer = async () => {
     return;
   }
   
+  if (!currentQuestion) {
+    showNotification('❌ Aucune question chargée', 'error');
+    return;
+  }
+  
+  const questionId = currentQuestion._id || 'default-question';
+  console.log('📤 Submitting answer...');
+  console.log('📝 Question ID:', questionId);
+  console.log('👤 Author:', currentUser);
+  console.log('📄 Text:', text);
+  console.log('🌐 Language:', currentLang);
+  
   try {
-    console.log('📤 Submitting answer...');
-    
     const res = await fetch('/api/answers', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        questionId: currentQuestion._id || 'default-question',
+        questionId: questionId,
         author: currentUser,
         text: text,
         language: currentLang
       })
     });
+    
+    console.log('📡 Response status:', res.status);
+    console.log('📡 Response headers:', res.headers);
     
     if (res.ok) {
       const result = await res.json();
@@ -140,7 +153,9 @@ const submitAnswer = async () => {
       answerInput.value = '';
       showNotification('✅ Réponse publiée!', 'success');
     } else {
-      throw new Error(`HTTP ${res.status}`);
+      const errorText = await res.text();
+      console.error('❌ Server error:', res.status, errorText);
+      throw new Error(`HTTP ${res.status}: ${errorText}`);
     }
     
   } catch (err) {
