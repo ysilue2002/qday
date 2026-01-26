@@ -27,7 +27,7 @@
       "dest": "/backend/api/answers/stream.js"
     },
     {
-      "src": "/api/answers/question/(.*)",
+      "src": "/api/answers/question",
       "dest": "/backend/api/answers/question.js"
     },
     {
