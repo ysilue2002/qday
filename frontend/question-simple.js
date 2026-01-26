@@ -37,40 +37,97 @@ const showNotification = (message, type = 'info') => {
   }, 3000);
 };
 
-// Charger la question depuis l'API
+// Charger la question du jour - Version optimisée pour question active
 const loadQuestionFromAPI = async () => {
   try {
-    console.log('🚀 Loading question from API...');
+    console.log('🚀 Loading TODAY question from API...');
     
-    const res = await fetch('/api/questions/today');
-    console.log('📡 Question API Response status:', res.status);
-    
-    if (!res.ok) {
-      throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+    // ÉTAPE 1: Toujours essayer l'API MongoDB en premier pour la question active du jour
+    try {
+      console.log('📡 Trying API for TODAY question...');
+      const res = await fetch("/api/questions/today");
+      console.log('📡 Today API Response status:', res.status);
+      
+      if (res.ok) {
+        const apiQuestion = await res.json();
+        console.log('✅ Today API Response:', apiQuestion);
+        
+        // Vérifier que c'est bien une question valide et active
+        if (apiQuestion && apiQuestion.text_fr && apiQuestion._id) {
+          console.log('🎯 Valid active question found:', apiQuestion.text_fr);
+          
+          currentQuestion = apiQuestion;
+          displayQuestion(apiQuestion);
+          
+          // Charger les réponses après la question
+          loadAnswers();
+          
+          showNotification('✅ Question du jour chargée!', 'success');
+          return; // SORTIR IMMÉDIATEMENT - on a la question active
+        } else {
+          console.warn('⚠️ Invalid question format from today API');
+        }
+      } else {
+        const errorText = await res.text();
+        console.error('❌ Today API Error:', res.status, errorText);
+      }
+    } catch (apiErr) {
+      console.error('❌ Today API request failed:', apiErr);
     }
     
-    const question = await res.json();
-    console.log('✅ Question received:', question);
+    console.log('⚠️ Today API failed, checking all questions for active one...');
     
-    if (question && question.text_fr) {
-      currentQuestion = question;
-      displayQuestion(question);
-      
-      // Charger les réponses après la question
-      loadAnswers();
-      
-      showNotification('✅ Question chargée depuis MongoDB!', 'success');
-    } else {
-      throw new Error('Question invalide');
+    // ÉTAPE 2: Fallback - chercher une question active dans toutes les questions
+    try {
+      const allRes = await fetch("/api/questions");
+      if (allRes.ok) {
+        const allQuestions = await allRes.json();
+        console.log('📋 All questions loaded:', allQuestions.length);
+        
+        // Chercher la première question avec active: true
+        const activeQuestion = allQuestions.find(q => q.active === true);
+        if (activeQuestion) {
+          console.log('🎯 Found active question in all questions:', activeQuestion.text_fr);
+          
+          currentQuestion = activeQuestion;
+          displayQuestion(activeQuestion);
+          
+          loadAnswers();
+          showNotification('✅ Question active trouvée!', 'success');
+          return; // SORTIR - on a une question active
+        }
+      }
+    } catch (allErr) {
+      console.error('❌ All questions API failed:', allErr);
     }
+    
+    console.log('⚠️ No active question found, using default...');
+    
+    // ÉTAPE 3: Question par défaut finale si aucune question active trouvée
+    const defaultQuestion = {
+      _id: 'default-question-today',
+      text: currentLang === 'fr' ? "Quelle est votre plus grande réussite cette année ?" : "What is your greatest achievement this year?",
+      text_fr: "Quelle est votre plus grande réussite cette année ?",
+      text_en: "What is your greatest achievement this year?",
+      category: "Réflexion / Reflection",
+      active: true,
+      createdAt: new Date(),
+      isDefault: true
+    };
+    
+    currentQuestion = defaultQuestion;
+    displayQuestion(defaultQuestion);
+    loadAnswers();
+    
+    showNotification('ℹ️ Question par défaut utilisée', 'info');
     
   } catch (err) {
-    console.error('❌ Error loading question:', err);
+    console.error('❌ Error loading today question:', err);
     showNotification(`❌ Erreur: ${err.message}`, 'error');
   }
 };
 
-// Afficher la question
+// Afficher la question - Version améliorée avec indicateur de statut
 const displayQuestion = (question) => {
   const questionBox = document.getElementById('questionBox');
   if (!questionBox) {
@@ -81,19 +138,34 @@ const displayQuestion = (question) => {
   const questionText = currentLang === 'fr' ? question.text_fr : question.text_en;
   const category = question.category || 'Général';
   const date = question.createdAt ? new Date(question.createdAt).toLocaleDateString() : new Date().toLocaleDateString();
-  const isDefault = question.isDefault ? '🌟 Question par défaut' : '🌐 Question de l\'admin';
+  
+  // Déterminer le statut et le style
+  let statusBadge = '';
+  let bgStyle = '';
+  
+  if (question.isDefault) {
+    statusBadge = '🌟 Question par défaut';
+    bgStyle = 'linear-gradient(135deg, #ffc107 0%, #ff9800 100%)';
+  } else if (question.active) {
+    statusBadge = '� Question du jour - ACTIVE';
+    bgStyle = 'linear-gradient(135deg, #28a745 0%, #20c997 100%)';
+  } else {
+    statusBadge = '📋 Question archivée';
+    bgStyle = 'linear-gradient(135deg, #6c757d 0%, #495057 100%)';
+  }
   
   questionBox.innerHTML = `
-    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 15px; margin: 10px 0; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
+    <div style="background: ${bgStyle}; color: white; padding: 20px; border-radius: 15px; margin: 10px 0; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
       <h3 style="margin: 0 0 10px 0; font-size: 1.2em; line-height: 1.4;">${questionText}</h3>
       <small style="opacity: 0.9;">${category} | ${date}</small>
       <div style="margin-top: 10px; padding: 8px; background: rgba(255,255,255,0.2); border-radius: 8px; font-size: 0.9rem;">
-        ${isDefault}
+        ${statusBadge}
       </div>
     </div>
   `;
   
   console.log('✅ Question displayed:', questionText);
+  console.log('📊 Question status:', statusBadge);
 };
 
 // Charger les réponses depuis l'API
