@@ -532,8 +532,44 @@ const handleQuestionSubmit = async (e) => {
       showNotification(t('question_added'), 'success');
     }
     
-    // Sauvegarder dans localStorage
+    // Sauvegarder dans localStorage (fallback)
     localStorage.setItem('qdayQuestions', JSON.stringify(currentQuestions));
+    
+    // Essayer de sauvegarder dans MongoDB API
+    try {
+      console.log('📤 Sending question to MongoDB API...');
+      const apiFormData = isEditing ? {
+        ...formData,
+        _id: editingId
+      } : formData;
+      
+      const apiResponse = await fetch('/api/questions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(apiFormData)
+      });
+      
+      if (apiResponse.ok) {
+        const apiResult = await apiResponse.json();
+        console.log('✅ Question sauvegardée dans MongoDB:', apiResult);
+        showNotification('✅ Question synchronisée avec MongoDB!', 'success');
+        
+        // Recharger les questions depuis MongoDB pour avoir les bons IDs
+        setTimeout(() => {
+          loadQuestions();
+        }, 1000);
+        
+      } else {
+        const errorText = await apiResponse.text();
+        console.error('❌ Erreur API MongoDB:', apiResponse.status, errorText);
+        showNotification('⚠️ Question sauvegardée localement uniquement', 'warning');
+      }
+    } catch (apiErr) {
+      console.error('❌ Erreur connexion API MongoDB:', apiErr);
+      showNotification('⚠️ Question sauvegardée localement uniquement', 'warning');
+    }
     
     // Fermer le modal
     closeModal('questionModal');
