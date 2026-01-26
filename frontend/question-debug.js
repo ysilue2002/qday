@@ -4,7 +4,7 @@ console.log('=== DEBUG VERSION START ===');
 // Variables globales
 let currentUser = '';
 let currentQuestion = null;
-let currentLanguage = localStorage.getItem('qdayLanguage') || 'fr';
+let currentLang = localStorage.getItem('qdayLanguage') || 'fr';
 
 // Afficher une notification
 const showNotification = (message, type = 'info') => {
@@ -85,7 +85,7 @@ const displayQuestion = (question) => {
     return;
   }
   
-  const questionText = currentLanguage === 'fr' ? question.text_fr : question.text_en;
+  const questionText = currentLang === 'fr' ? question.text_fr : question.text_en;
   const category = question.category || 'Général';
   const date = question.createdAt ? new Date(question.createdAt).toLocaleDateString() : new Date().toLocaleDateString();
   const isDefault = question.isDefault ? '🌟 Question par défaut' : '🌐 Question de l\'admin';
@@ -130,7 +130,7 @@ const submitAnswer = async () => {
         questionId: currentQuestion._id || 'default-question',
         author: currentUser,
         text: text,
-        language: currentLanguage
+        language: currentLang
       })
     });
     
