@@ -16,25 +16,37 @@ const connectDB = async () => {
       serverSelectionTimeoutMS: 5000,
       bufferCommands: false
     });
-    console.log('✅ MongoDB connecté');
+    console.log('✅ MongoDB connecté (questions)');
     return true;
   } catch (err) {
-    console.error('❌ Erreur connexion MongoDB:', err.message);
+    console.error('❌ Erreur connexion MongoDB (questions):', err.message);
     return false;
   }
 };
 
-// Modèle Question simplifié
+// Schéma Question pour Vercel
 const QuestionSchema = new mongoose.Schema({
-  text: String,
-  text_fr: String,
-  text_en: String,
-  category: String,
-  active: Boolean,
-  createdAt: { type: Date, default: Date.now }
-}, { collection: 'questions' });
+  text: { type: String, required: true, trim: true }, // Fallback
+  text_fr: { type: String, required: true, trim: true },
+  text_en: { type: String, required: true, trim: true },
+  category: {
+    type: String,
+    required: true,
+    enum: [
+      "Politique", "Sport", "Culture", "Santé", "People", "Religion",
+      "Technologie", "Actualité", "Cuisine", "Cinéma", "Musique",
+      "Voyage", "Réflexion", "Humour", "Science"
+    ]
+  },
+  date: { type: Date, default: Date.now },
+  active: { type: Boolean, default: false },
+  scheduledDate: { type: Date }
+}, { 
+  timestamps: true,
+  collection: 'questions'
+});
 
-const Question = mongoose.models.Question || mongoose.model('Question', QuestionSchema);
+const Question = mongoose.models.Question || mongoose.model("Question", QuestionSchema);
 
 export default async function handler(req, res) {
   // CORS
@@ -49,72 +61,64 @@ export default async function handler(req, res) {
   try {
     console.log('=== /api/questions called ===', req.method);
     
+    // Connexion à MongoDB
+    const connected = await connectDB();
+    if (!connected) {
+      return res.status(500).json({ message: 'MongoDB non disponible' });
+    }
+    
     if (req.method === 'GET') {
-      // Essayer de se connecter à MongoDB
-      const connected = await connectDB();
-      
-      if (connected) {
-        try {
-          const questions = await Question.find({}).sort({ createdAt: -1 });
-          console.log(`✅ ${questions.length} questions trouvées`);
-          return res.json(questions);
-        } catch (dbErr) {
-          console.error('❌ Erreur recherche questions:', dbErr.message);
-        }
-      }
-      
-      // Questions par défaut si MongoDB non disponible
-      const defaultQuestions = [
-        {
-          _id: 'default-1',
-          text: "Quelle est votre plus grande réussite cette année ?",
-          text_fr: "Quelle est votre plus grande réussite cette année ?",
-          text_en: "What is your greatest achievement this year?",
-          category: "Réflexion",
-          active: true,
-          createdAt: new Date(),
-          isDefault: true
-        }
-      ];
-      
-      console.log('✅ Questions par défaut retournées');
-      return res.json(defaultQuestions);
+      console.log('Fetching all questions...');
+      const questions = await Question.find().sort({ createdAt: -1 });
+      console.log(`✅ Found ${questions.length} questions`);
+      return res.json(questions);
     }
     
     if (req.method === 'POST') {
-      const { text, text_fr, text_en, category, active } = req.body;
+      const { text, text_fr, text_en, category, active, scheduledDate } = req.body;
       
-      if (!text || !category) {
-        return res.status(400).json({ message: 'Champs requis manquants' });
+      console.log('Creating question:', { text_fr, category, active });
+      
+      // Validation
+      if (!text_fr || !text_en || !category) {
+        return res.status(400).json({ 
+          message: 'Champs requis manquants',
+          required: ['text_fr', 'text_en', 'category'],
+          received: { text_fr: !!text_fr, text_en: !!text_en, category: !!category }
+        });
       }
       
-      // Essayer de se connecter à MongoDB
-      const connected = await connectDB();
-      
-      if (connected) {
-        try {
-          if (active) {
-            await Question.updateMany({ active: true }, { active: false });
-          }
-          
-          const question = new Question({ text, text_fr, text_en, category, active });
-          await question.save();
-          
-          console.log('✅ Question créée:', question.text_fr);
-          return res.status(201).json({ message: "Question créée", question });
-        } catch (dbErr) {
-          console.error('❌ Erreur création question:', dbErr.message);
-          return res.status(500).json({ message: dbErr.message });
-        }
+      // Si active, désactiver les autres questions actives
+      if (active) {
+        await Question.updateMany({ active: true }, { active: false });
+        console.log('✅ Désactivé autres questions actives');
       }
       
-      return res.status(500).json({ message: 'MongoDB non disponible' });
+      const question = new Question({ 
+        text: text || text_fr, // Utiliser text_fr comme fallback
+        text_fr, 
+        text_en, 
+        category, 
+        active: active || false,
+        scheduledDate
+      });
+      
+      await question.save();
+      console.log('✅ Question créée:', question._id);
+      
+      return res.status(201).json({ 
+        message: "Question créée avec succès", 
+        question 
+      });
     }
     
     return res.status(405).json({ message: 'Method not allowed' });
     
   } catch (err) {
-    console.error('❌ Erreur endpoint:', err.message);
-    return res.status(500).json({ message: 'Erreur serveur' });
+    console.error('❌ Erreur endpoint questions:', err.message);
+    return res.status(500).json({ 
+      message: 'Erreur serveur', 
+      error: err.message 
+    });
   }
 }
