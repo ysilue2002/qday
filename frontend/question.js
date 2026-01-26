@@ -1,8 +1,7 @@
 // Variables globales
 let currentUser = '';
 let currentQuestion = null;
-let currentLanguage = localStorage.getItem('qdayLanguage') || 'fr';
-let currentLang = currentLanguage; // Pour compatibilité
+let currentLang = localStorage.getItem('qdayLanguage') || 'fr';
 
 // Variables globales pour le temps réel
 let eventSource = null;
@@ -225,7 +224,7 @@ const loadUnifiedAnswers = async () => {
         if (Array.isArray(apiAnswers) && apiAnswers.length > 0) {
           // Filtrer par langue
           const filteredAnswers = apiAnswers.filter(answer => {
-            if (currentLanguage === 'fr') {
+            if (currentLang === 'fr') {
               return !answer.language || answer.language === 'fr';
             } else {
               return answer.language === 'en';
@@ -264,7 +263,7 @@ const loadUnifiedAnswers = async () => {
         if (localAnswers.length > 0) {
           // Filtrer par langue
           const filteredAnswers = localAnswers.filter(answer => {
-            if (currentLanguage === 'fr') {
+            if (currentLang === 'fr') {
               return !answer.language || answer.language === 'fr';
             } else {
               return answer.language === 'en';
@@ -356,13 +355,13 @@ const submitUnifiedAnswer = async () => {
   const text = input.value.trim();
   
   if (!text) {
-    alert(currentLanguage === 'fr' ? 'Veuillez écrire une réponse' : 'Please write an answer');
+    alert(currentLang === 'fr' ? 'Veuillez écrire une réponse' : 'Please write an answer');
     return;
   }
   
   if (!currentQuestion || !currentQuestion._id) {
     console.error('No current question available');
-    alert(currentLanguage === 'fr' ? 'Pas de question disponible' : 'No question available');
+    alert(currentLang === 'fr' ? 'Pas de question disponible' : 'No question available');
     return;
   }
   
@@ -380,7 +379,7 @@ const submitUnifiedAnswer = async () => {
             questionId: currentQuestion._id,
             author: currentUser,
             text: text,
-            language: currentLanguage,
+            language: currentLang,
             likes: [],
             comments: [],
             createdAt: new Date().toISOString()
@@ -395,7 +394,7 @@ const submitUnifiedAnswer = async () => {
           loadUnifiedAnswers();
           
           // Message de confirmation
-          const confirmMsg = currentLanguage === 'fr' ? 
+          const confirmMsg = currentLang === 'fr' ? 
             '✅ Réponse publiée avec succès!' : 
             '✅ Answer published successfully!';
           
@@ -431,7 +430,7 @@ const submitUnifiedAnswer = async () => {
       _id: 'local-answer-' + Date.now(),
       pseudo: currentUser,
       text: text,
-      language: currentLanguage,
+      language: currentLang,
       likes: 0,
       likedBy: [],
       comments: [],
@@ -449,7 +448,7 @@ const submitUnifiedAnswer = async () => {
     loadUnifiedAnswers();
     
     // Message de confirmation
-    const confirmMsg = currentLanguage === 'fr' ? 
+    const confirmMsg = currentLang === 'fr' ? 
       '✅ Réponse sauvegardée!' : 
       '✅ Answer saved!';
     
@@ -458,7 +457,7 @@ const submitUnifiedAnswer = async () => {
   } catch (err) {
     console.error('UNIFIED ERROR - Answer submission failed:', err);
     
-    const errorMsg = currentLanguage === 'fr' ? 
+    const errorMsg = currentLang === 'fr' ? 
       '❌ Erreur lors de la publication' : 
       '❌ Error publishing answer';
     
@@ -546,9 +545,9 @@ const addRealTimeAnswer = (answer) => {
   
   // Filtrer par langue
   const shouldShow = !answer.language || 
-    (currentLanguage === 'fr' && !answer.language) ||
-    (currentLanguage === 'fr' && answer.language === 'fr') ||
-    (currentLanguage === 'en' && answer.language === 'en');
+    (currentLang === 'fr' && !answer.language) ||
+    (currentLang === 'fr' && answer.language === 'fr') ||
+    (currentLang === 'en' && answer.language === 'en');
   
   if (!shouldShow) {
     console.log('Réponse filtrée par langue:', answer.language);
@@ -915,9 +914,9 @@ document.addEventListener("DOMContentLoaded", () => {
   const langToggle = document.getElementById('langToggle');
   if (langToggle) {
     langToggle.addEventListener('change', (e) => {
-      currentLanguage = e.target.value;
-      localStorage.setItem('qdayLanguage', currentLanguage);
-      console.log('Langue changée:', currentLanguage);
+      currentLang = e.target.value;
+      localStorage.setItem('qdayLanguage', currentLang);
+      console.log('Langue changée:', currentLang);
       
       // Recharger les réponses dans la nouvelle langue
       if (currentQuestion) {
