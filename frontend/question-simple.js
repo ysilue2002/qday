@@ -177,9 +177,9 @@ const displayAnswers = (answers) => {
     new Date(b.createdAt) - new Date(a.createdAt)
   );
   
-  // Afficher chaque réponse (HTML optimisé)
+  // Afficher chaque réponse (HTML optimisé avec likes et commentaires)
   answersBox.innerHTML = sortedAnswers.map(answer => `
-    <div class="answer-card" style="
+    <div class="answer-card" data-answer-id="${answer._id}" style="
       background: white; border: 1px solid #e0e0e0; border-radius: 12px; 
       padding: 15px; margin: 10px 0; box-shadow: 0 2px 8px rgba(0,0,0,0.1);
       transition: transform 0.2s ease, box-shadow 0.2s ease;
@@ -196,11 +196,41 @@ const displayAnswers = (answers) => {
         ${answer.text}
       </p>
       <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #f0f0f0;">
-        <small style="color: #999;">
-          ${answer.likes ? `${answer.likes.length} 👍` : '0 👍'} 
-          ${answer.comments ? `${answer.comments.length} 💬` : '0 💬'}
-          ${answer.language ? `🌐 ${answer.language}` : ''}
-        </small>
+        <div style="display: flex; gap: 10px; align-items: center;">
+          <button onclick="likeAnswer('${answer._id}')" id="like-btn-${answer._id}" style="
+            background: ${isLikedByUser(answer) ? '#ff6b6b' : '#f0f0f0'}; 
+            color: ${isLikedByUser(answer) ? 'white' : '#333'}; 
+            border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; 
+            font-size: 0.85rem; transition: all 0.2s ease;
+          " onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+            ❤️ ${answer.likes ? answer.likes.length : 0}
+          </button>
+          <button onclick="toggleComments('${answer._id}')" style="
+            background: #f0f0f0; color: #333; border: none; padding: 6px 12px; 
+            border-radius: 6px; cursor: pointer; font-size: 0.85rem; 
+            transition: all 0.2s ease;
+          " onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+            💬 ${answer.comments ? answer.comments.length : 0}
+          </button>
+        </div>
+      </div>
+      <div id="comments-${answer._id}" style="display: none; margin-top: 15px; padding: 15px; background: #f8f9fa; border-radius: 8px; border-left: 4px solid #667eea;">
+        <div style="margin-bottom: 10px;">
+          <input type="text" id="comment-input-${answer._id}" placeholder="Écrire un commentaire..." style="
+            width: 100%; padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; 
+            font-size: 0.9rem; outline: none; transition: border-color 0.2s ease;
+          " onkeypress="if(event.key === 'Enter') addComment('${answer._id}')" onfocus="this.style.borderColor='#667eea'" onblur="this.style.borderColor='#ddd'">
+          <button onclick="addComment('${answer._id}')" style="
+            margin-top: 8px; background: #667eea; color: white; border: none; 
+            padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 0.85rem;
+            transition: background 0.2s ease;
+          " onmouseover="this.style.background='#5a6fd8'" onmouseout="this.style.background='#667eea'">
+            Envoyer
+          </button>
+        </div>
+        <div id="comments-list-${answer._id}">
+          ${renderComments(answer.comments || [])}
+        </div>
       </div>
     </div>
   `).join('');
@@ -208,7 +238,129 @@ const displayAnswers = (answers) => {
   console.log(`✅ ${sortedAnswers.length} answers displayed`);
 };
 
-// Formater la date de manière optimisée
+// Vérifier si l'utilisateur a liké une réponse
+const isLikedByUser = (answer) => {
+  return answer.likes && answer.likes.includes(currentUser);
+};
+
+// Afficher les commentaires
+const renderComments = (comments) => {
+  if (!comments || comments.length === 0) {
+    return '<p style="color: #999; font-style: italic; font-size: 0.85rem;">Aucun commentaire pour le moment.</p>';
+  }
+  
+  return comments.map(comment => `
+    <div style="margin-bottom: 8px; padding: 8px; background: white; border-radius: 6px; border-left: 3px solid #667eea;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+        <strong style="color: #333; font-size: 0.85rem;">${comment.author}</strong>
+        <small style="color: #666; font-size: 0.75rem;">${formatDate(comment.createdAt)}</small>
+      </div>
+      <p style="margin: 0; color: #444; font-size: 0.85rem; line-height: 1.4;">${comment.text}</p>
+    </div>
+  `).join('');
+};
+
+// Liké une réponse
+const likeAnswer = async (answerId) => {
+  console.log('👍 Liking answer:', answerId);
+  
+  try {
+    const res = await fetch(`/api/answers/${answerId}/like`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        author: currentUser
+      })
+    });
+    
+    if (res.ok) {
+      console.log('✅ Like successful');
+      showNotification('❤️ Liké!', 'success');
+      
+      // Recharger les réponses pour mettre à jour le compteur
+      setTimeout(() => {
+        loadAnswers();
+      }, 200);
+      
+    } else {
+      const errorText = await res.text();
+      console.error('❌ Like error:', res.status, errorText);
+      showNotification('❌ Erreur lors du like', 'error');
+    }
+    
+  } catch (err) {
+    console.error('❌ Like network error:', err);
+    showNotification('❌ Erreur réseau', 'error');
+  }
+};
+
+// Afficher/cacher les commentaires
+const toggleComments = (answerId) => {
+  const commentsSection = document.getElementById(`comments-${answerId}`);
+  if (commentsSection) {
+    const isVisible = commentsSection.style.display !== 'none';
+    commentsSection.style.display = isVisible ? 'none' : 'block';
+    
+    if (!isVisible) {
+      // Focus sur le champ de commentaire quand on ouvre
+      setTimeout(() => {
+        const input = document.getElementById(`comment-input-${answerId}`);
+        if (input) {
+          input.focus();
+        }
+      }, 100);
+    }
+  }
+};
+
+// Ajouter un commentaire
+const addComment = async (answerId) => {
+  const input = document.getElementById(`comment-input-${answerId}`);
+  const text = input.value.trim();
+  
+  if (!text) {
+    showNotification('⚠️ Veuillez écrire un commentaire', 'warning');
+    return;
+  }
+  
+  console.log('💬 Adding comment to answer:', answerId);
+  console.log('📄 Comment text:', text);
+  
+  try {
+    const res = await fetch(`/api/answers/${answerId}/comment`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        author: currentUser,
+        text: text
+      })
+    });
+    
+    if (res.ok) {
+      console.log('✅ Comment added successfully');
+      input.value = '';
+      showNotification('💬 Commentaire ajouté!', 'success');
+      
+      // Recharger les réponses pour afficher le nouveau commentaire
+      setTimeout(() => {
+        loadAnswers();
+      }, 200);
+      
+    } else {
+      const errorText = await res.text();
+      console.error('❌ Comment error:', res.status, errorText);
+      showNotification('❌ Erreur lors du commentaire', 'error');
+    }
+    
+  } catch (err) {
+    console.error('❌ Comment network error:', err);
+    showNotification('❌ Erreur réseau', 'error');
+  }
+};
 const formatDate = (dateString) => {
   const date = new Date(dateString);
   const now = new Date();

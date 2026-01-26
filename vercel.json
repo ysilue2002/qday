@@ -39,6 +39,14 @@
       "dest": "/backend/api/answers/index.js"
     },
     {
+      "src": "/api/answers/(.*)/like",
+      "dest": "/backend/api/answers/like.js"
+    },
+    {
+      "src": "/api/answers/(.*)/comment",
+      "dest": "/backend/api/answers/comment.js"
+    },
+    {
       "src": "/api/(.*)",
       "dest": "/backend/server.js"
     },
