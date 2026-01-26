@@ -133,7 +133,7 @@ const loadAnswers = async () => {
   }
 };
 
-// Afficher les réponses
+// Afficher les réponses - Version optimisée
 const displayAnswers = (answers) => {
   const answersBox = document.getElementById('answersBox');
   if (!answersBox) {
@@ -152,7 +152,7 @@ const displayAnswers = (answers) => {
     return;
   }
   
-  // Filtrer par langue
+  // Filtrer par langue (optimisé)
   const filteredAnswers = answers.filter(answer => {
     if (currentLang === 'fr') {
       return !answer.language || answer.language === 'fr';
@@ -172,18 +172,24 @@ const displayAnswers = (answers) => {
     return;
   }
   
-  // Afficher chaque réponse
-  answersBox.innerHTML = filteredAnswers.map(answer => `
+  // Trier par date (plus récent en premier) pour meilleure UX
+  const sortedAnswers = filteredAnswers.sort((a, b) => 
+    new Date(b.createdAt) - new Date(a.createdAt)
+  );
+  
+  // Afficher chaque réponse (HTML optimisé)
+  answersBox.innerHTML = sortedAnswers.map(answer => `
     <div class="answer-card" style="
       background: white; border: 1px solid #e0e0e0; border-radius: 12px; 
       padding: 15px; margin: 10px 0; box-shadow: 0 2px 8px rgba(0,0,0,0.1);
       transition: transform 0.2s ease, box-shadow 0.2s ease;
+      animation: slideIn 0.3s ease-out;
     " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)'"
        onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 8px rgba(0,0,0,0.1)'">
       <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
         <strong style="color: #333; font-size: 1.1em;">${answer.author || 'Anonymous'}</strong>
         <small style="color: #666; font-size: 0.8em;">
-          ${new Date(answer.createdAt).toLocaleDateString()}
+          ${formatDate(answer.createdAt)}
         </small>
       </div>
       <p style="margin: 0; color: #444; line-height: 1.5; font-size: 0.95em;">
@@ -199,7 +205,24 @@ const displayAnswers = (answers) => {
     </div>
   `).join('');
   
-  console.log(`✅ ${filteredAnswers.length} answers displayed`);
+  console.log(`✅ ${sortedAnswers.length} answers displayed`);
+};
+
+// Formater la date de manière optimisée
+const formatDate = (dateString) => {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffMs = now - date;
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+  
+  if (diffMins < 1) return 'à l\'instant';
+  if (diffMins < 60) return `il y a ${diffMins} min`;
+  if (diffHours < 24) return `il y a ${diffHours}h`;
+  if (diffDays < 7) return `il y a ${diffDays}j`;
+  
+  return date.toLocaleDateString('fr-FR');
 };
 
 // SOUMETTRE UNE RÉPONSE - Version ultra-simple
@@ -269,11 +292,11 @@ const submitAnswer = async () => {
       // Notification
       showNotification('✅ Réponse publiée!', 'success');
       
-      // Recharger les réponses après un court délai
+      // Recharger les réponses après un court délai (optimisé)
       setTimeout(() => {
         console.log('🔄 Reloading answers...');
         loadAnswers();
-      }, 500);
+      }, 200); // Réduit de 500ms à 200ms
       
     } else {
       const errorText = await res.text();
