@@ -6,7 +6,113 @@ let currentUser = '';
 let currentQuestion = null;
 let currentLang = localStorage.getItem('qdayLanguage') || 'fr';
 
-// Afficher une notification
+// Publicités - Configuration optimisée pour mobile
+const currentAds = {
+  1: { type: 'adsense', content: { format: 'responsive' } },
+  2: { type: 'empty' },
+  3: { type: 'adsense', content: { format: 'mobile-banner' } },
+  4: { type: 'empty' },
+  5: { type: 'adsense', content: { format: 'responsive' } },
+  6: { type: 'empty' }
+};
+
+// Charger les publicités - Version optimisée pour mobile
+const loadAds = async () => {
+  console.log('🚀 Loading ads optimized for mobile...');
+  
+  try {
+    // Détecter si on est sur mobile
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 768;
+    console.log('📱 Mobile detected:', isMobile);
+    
+    // Simuler le chargement des pubs avec optimisation mobile
+    for (let i = 1; i <= 6; i++) {
+      const ad = currentAds[i];
+      const adElement = document.querySelector(`.ad-banner:nth-child(${i}) .ad-placeholder`);
+      
+      console.log(`📦 Processing ad ${i}:`, ad);
+      
+      if (adElement && ad && ad.type !== 'empty') {
+        if (ad.type === 'adsense') {
+          // Optimisation pour mobile
+          const adSize = isMobile ? 
+            { width: '100%', height: '250px', minHeight: '250px' } : 
+            { width: '100%', height: '280px', minHeight: '280px' };
+          
+          adElement.innerHTML = `
+            <div class="adsense-placeholder" style="
+              background: linear-gradient(135deg, #4285f4 0%, #34a853 50%, #fbbc05 75%, #ea4335 100%); 
+              color: white; 
+              padding: ${isMobile ? '1rem' : '2rem'}; 
+              border-radius: 8px; 
+              width: ${adSize.width}; 
+              height: ${adSize.height}; 
+              min-height: ${adSize.minHeight}; 
+              display: flex; 
+              flex-direction: column; 
+              justify-content: center; 
+              align-items: center; 
+              font-weight: bold; 
+              text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+              box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+              margin: 0 auto;
+              text-align: center;
+            ">
+              <div style="font-size: ${isMobile ? '1rem' : '1.2rem'}; margin-bottom: 0.5rem;">
+                📱 Publicité Mobile
+              </div>
+              <div style="font-size: ${isMobile ? '0.8rem' : '0.9rem'}; opacity: 0.9;">
+                ${isMobile ? 'Format Mobile Optimisé' : 'Format Responsive'}
+              </div>
+              <div style="font-size: ${isMobile ? '0.7rem' : '0.8rem'}; opacity: 0.8; margin-top: 0.5rem;">
+                ${ad.content.format || 'Responsive'}
+              </div>
+            </div>
+          `;
+          
+          console.log(`✅ Ad ${i} loaded for ${isMobile ? 'mobile' : 'desktop'}`);
+          
+        } else if (ad.type === 'image') {
+          adElement.innerHTML = `<img src="${ad.content}" style="max-width: 100%; max-height: 100%; object-fit: cover; border-radius: 8px;" />`;
+        } else if (ad.type === 'video') {
+          adElement.innerHTML = `<video controls style="max-width: 100%; max-height: 100%; border-radius: 8px;"><source src="${ad.content}" /></video>`;
+        } else if (ad.type === 'text') {
+          adElement.innerHTML = `<div style="padding: 1rem; text-align: center; font-size: ${isMobile ? '0.9rem' : '1rem'};">${ad.content}</div>`;
+        } else if (ad.type === 'html') {
+          adElement.innerHTML = ad.content;
+        }
+      } else if (adElement && (!ad || ad.type === 'empty')) {
+        // Placeholder vide pour les emplacements vides
+        adElement.innerHTML = `
+          <div style="
+            background: #f8f9fa; 
+            border: 2px dashed #dee2e6; 
+            border-radius: 8px; 
+            padding: ${isMobile ? '1rem' : '2rem'}; 
+            text-align: center; 
+            color: #6c757d; 
+            font-size: ${isMobile ? '0.8rem' : '0.9rem'};
+            min-height: ${isMobile ? '80px' : '120px'};
+            display: flex;
+            align-items: center;
+            justify-content: center;
+          ">
+            <div>
+              <div style="font-size: ${isMobile ? '1.5rem' : '2rem'}; margin-bottom: 0.5rem;">📭</div>
+              <div>Espace publicitaire disponible</div>
+              ${isMobile ? '<div style="font-size: 0.7rem; margin-top: 0.5rem;">Format Mobile</div>' : ''}
+            </div>
+          </div>
+        `;
+      }
+    }
+    
+    console.log('✅ All ads loaded successfully');
+    
+  } catch (err) {
+    console.error('❌ Error loading ads:', err);
+  }
+};
 const showNotification = (message, type = 'info') => {
   console.log(`[${type}] ${message}`);
   const colors = {
@@ -551,6 +657,9 @@ document.addEventListener('DOMContentLoaded', () => {
     showNotification('❌ Utilisateur non connecté', 'error');
     return;
   }
+  
+  // Charger les publicités (optimisé pour mobile)
+  loadAds();
   
   // Charger la question (qui chargera aussi les réponses)
   loadQuestionFromAPI();
