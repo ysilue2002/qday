@@ -143,7 +143,7 @@ const showNotification = (message, type = 'info') => {
   }, 3000);
 };
 
-// Charger la question du jour - Version optimisée pour question active
+// Charger la question du jour - Version optimisée avec cache busting
 const loadQuestionFromAPI = async () => {
   try {
     console.log('🚀 Loading TODAY question from API...');
@@ -151,7 +151,17 @@ const loadQuestionFromAPI = async () => {
     // ÉTAPE 1: Toujours essayer l'API MongoDB en premier pour la question active du jour
     try {
       console.log('📡 Trying API for TODAY question...');
-      const res = await fetch("/api/questions/today");
+      
+      // Ajouter timestamp pour éviter le cache
+      const timestamp = new Date().getTime();
+      const res = await fetch(`/api/questions/today?t=${timestamp}`, {
+        method: 'GET',
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
+      });
+      
       console.log('📡 Today API Response status:', res.status);
       
       if (res.ok) {
@@ -162,14 +172,21 @@ const loadQuestionFromAPI = async () => {
         if (apiQuestion && apiQuestion.text_fr && apiQuestion._id) {
           console.log('🎯 Valid active question found:', apiQuestion.text_fr);
           
-          currentQuestion = apiQuestion;
-          displayQuestion(apiQuestion);
+          // Vérifier si c'est vraiment une question active (pas fallback)
+          const isRealActiveQuestion = apiQuestion.active === true && !apiQuestion.isDefault && !apiQuestion.isFallback;
           
-          // Charger les réponses après la question
-          loadAnswers();
-          
-          showNotification('✅ Question du jour chargée!', 'success');
-          return; // SORTIR IMMÉDIATEMENT - on a la question active
+          if (isRealActiveQuestion) {
+            currentQuestion = apiQuestion;
+            displayQuestion(apiQuestion);
+            
+            // Charger les réponses après la question
+            loadAnswers();
+            
+            showNotification('✅ Question du jour chargée!', 'success');
+            return; // SORTIR IMMÉDIATEMENT - on a la question active
+          } else {
+            console.warn('⚠️ Question found but not active, checking all questions...');
+          }
         } else {
           console.warn('⚠️ Invalid question format from today API');
         }
@@ -185,7 +202,15 @@ const loadQuestionFromAPI = async () => {
     
     // ÉTAPE 2: Fallback - chercher une question active dans toutes les questions
     try {
-      const allRes = await fetch("/api/questions");
+      const timestamp = new Date().getTime();
+      const allRes = await fetch(`/api/questions?t=${timestamp}`, {
+        method: 'GET',
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
+      });
+      
       if (allRes.ok) {
         const allQuestions = await allRes.json();
         console.log('📋 All questions loaded:', allQuestions.length);
