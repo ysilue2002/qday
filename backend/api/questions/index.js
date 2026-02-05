@@ -76,42 +76,43 @@ export default async function handler(req, res) {
     
     if (req.method === 'POST') {
       const { text, text_fr, text_en, category, active, scheduledDate } = req.body;
-      
+
       console.log('Creating question:', { text_fr, category, active });
-      
+
       // Validation
       if (!text_fr || !text_en || !category) {
-        return res.status(400).json({ 
+        return res.status(400).json({
           message: 'Champs requis manquants',
           required: ['text_fr', 'text_en', 'category'],
           received: { text_fr: !!text_fr, text_en: !!text_en, category: !!category }
         });
       }
-      
-      // Si active, désactiver les autres questions actives
+
+      // SI ACTIVE: ÉCRASER AUTOMATIQUEMENT LES AUTRES QUESTIONS
       if (active) {
-        await Question.updateMany({ active: true }, { active: false });
-        console.log('✅ Désactivé autres questions actives');
+        console.log(' New active question - disabling all previous questions');
+        await Question.updateMany({}, { active: false });
+        console.log('✅ All previous questions disabled');
       }
-      
-      const question = new Question({ 
+
+      const question = new Question({
         text: text || text_fr, // Utiliser text_fr comme fallback
-        text_fr, 
-        text_en, 
-        category, 
+        text_fr,
+        text_en,
+        category,
         active: active || false,
         scheduledDate
       });
-      
+
       await question.save();
       console.log('✅ Question créée:', question._id);
-      
-      return res.status(201).json({ 
-        message: "Question créée avec succès", 
-        question 
+
+      return res.status(201).json({
+        message: "Question créée avec succès",
+        question
       });
     }
-    
+
     return res.status(405).json({ message: 'Method not allowed' });
     
   } catch (err) {
