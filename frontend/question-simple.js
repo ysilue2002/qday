@@ -147,25 +147,24 @@ const showNotification = (message, type = 'info') => {
 const loadQuestionFromAPI = async () => {
   try {
     console.log('🚀 Loading TODAY question from API - NO CACHE MODE...');
+    const nowTs = Date.now();
     
     // FORCER le rechargement complet - PAS DE CACHE
     try {
       console.log('📡 Forcing fresh API call - NO CACHE...');
       
       // Timestamp unique + headers anti-cache + méthode POST pour éviter tout cache
-      const timestamp = new Date().getTime();
+      const timestamp = nowTs;
       const random = Math.random().toString(36).substring(7);
       
       const res = await fetch(`/api/questions/today?fresh=${timestamp}&rand=${random}`, {
-        method: 'POST', // POST pour éviter le cache GET
+        method: 'GET',
         headers: {
-          'Content-Type': 'application/json',
           'Cache-Control': 'no-cache, no-store, must-revalidate',
           'Pragma': 'no-cache',
           'Expires': '0',
           'If-Modified-Since': '0'
-        },
-        body: JSON.stringify({ forceRefresh: true, timestamp })
+        }
       });
       
       console.log('📡 Fresh API Response status:', res.status);
@@ -175,8 +174,9 @@ const loadQuestionFromAPI = async () => {
         console.log('✅ Fresh API Response:', apiQuestion);
         
         // Vérification stricte - question active VRAIE
-        if (apiQuestion && apiQuestion.text_fr && apiQuestion._id && apiQuestion.active === true) {
-          console.log('🎯 REAL ACTIVE QUESTION FOUND:', apiQuestion.text_fr);
+        const hasText = apiQuestion && (apiQuestion.text_fr || apiQuestion.text);
+        if (hasText && apiQuestion._id) {
+          console.log('🎯 REAL QUESTION FOUND:', apiQuestion.text_fr || apiQuestion.text);
           
           // FORCER le rechargement du localStorage aussi
           localStorage.removeItem('qdayCachedQuestion');
@@ -191,7 +191,7 @@ const loadQuestionFromAPI = async () => {
           showNotification('✅ Question du jour FRAÎCHE chargée!', 'success');
           return; // SORTIR IMMÉDIATEMENT
         } else {
-          console.warn('⚠️ Question found but NOT ACTIVE:', apiQuestion);
+          console.warn('⚠️ Question found but INVALID:', apiQuestion);
         }
       } else {
         const errorText = await res.text();
@@ -205,18 +205,16 @@ const loadQuestionFromAPI = async () => {
     
     // ÉTAPE 2: Toutes les questions SANS CACHE
     try {
-      const timestamp = new Date().getTime();
+      const timestamp = nowTs;
       const random = Math.random().toString(36).substring(7);
       
       const allRes = await fetch(`/api/questions?fresh=${timestamp}&rand=${random}`, {
-        method: 'POST',
+        method: 'GET',
         headers: {
-          'Content-Type': 'application/json',
           'Cache-Control': 'no-cache, no-store, must-revalidate',
           'Pragma': 'no-cache',
           'Expires': '0'
-        },
-        body: JSON.stringify({ forceRefresh: true, timestamp })
+        }
       });
       
       if (allRes.ok) {
@@ -248,7 +246,7 @@ const loadQuestionFromAPI = async () => {
     
     // ÉTAPE 3: Question par défaut UNIQUEMENT si aucune question active
     const defaultQuestion = {
-      _id: `default-${timestamp}`,
+      _id: `default-${nowTs}`,
       text: currentLang === 'fr' ? "Quelle est votre plus grande réussite cette année ?" : "What is your greatest achievement this year?",
       text_fr: "Quelle est votre plus grande réussite cette année ?",
       text_en: "What is your greatest achievement this year?",
@@ -278,7 +276,9 @@ const displayQuestion = (question) => {
     return;
   }
   
-  const questionText = currentLang === 'fr' ? question.text_fr : question.text_en;
+  const questionText = currentLang === 'fr'
+    ? (question.text_fr || question.text)
+    : (question.text_en || question.text);
   const category = question.category || 'Général';
   const date = question.createdAt ? new Date(question.createdAt).toLocaleDateString() : new Date().toLocaleDateString();
   
@@ -290,7 +290,7 @@ const displayQuestion = (question) => {
     statusBadge = '🌟 Question par défaut';
     bgStyle = 'linear-gradient(135deg, #ffc107 0%, #ff9800 100%)';
   } else if (question.active) {
-    statusBadge = '� Question du jour - ACTIVE';
+    statusBadge = '✅ Question du jour - ACTIVE';
     bgStyle = 'linear-gradient(135deg, #28a745 0%, #20c997 100%)';
   } else {
     statusBadge = '📋 Question archivée';
@@ -322,7 +322,7 @@ const loadAnswers = async () => {
     console.log('🚀 Loading answers from API...');
     console.log('📝 Question ID:', currentQuestion._id);
     
-    const res = await fetch(`/api/answers/question?questionId=${currentQuestion._id}`);
+    const res = await fetch(`/api/answers/question/${currentQuestion._id}`);
     console.log('📡 Answers API Response status:', res.status);
     
     if (res.ok) {

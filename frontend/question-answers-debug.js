@@ -52,7 +52,7 @@ const loadQuestionFromAPI = async () => {
     const question = await res.json();
     console.log('✅ Question received:', question);
     
-    if (question && question.text_fr) {
+    if (question && (question.text_fr || question.text)) {
       currentQuestion = question;
       displayQuestion(question);
       
@@ -78,7 +78,9 @@ const displayQuestion = (question) => {
     return;
   }
   
-  const questionText = currentLang === 'fr' ? question.text_fr : question.text_en;
+  const questionText = currentLang === 'fr'
+    ? (question.text_fr || question.text)
+    : (question.text_en || question.text);
   const category = question.category || 'Général';
   const date = question.createdAt ? new Date(question.createdAt).toLocaleDateString() : new Date().toLocaleDateString();
   const isDefault = question.isDefault ? '🌟 Question par défaut' : '🌐 Question de l\'admin';
@@ -108,7 +110,7 @@ const loadAnswers = async () => {
     console.log('📝 Question ID:', currentQuestion._id);
     
     // Essayer l'API MongoDB
-    const res = await fetch(`/api/answers/question?questionId=${currentQuestion._id}`);
+    const res = await fetch(`/api/answers/question/${currentQuestion._id}`);
     console.log('📡 Answers API Response status:', res.status);
     
     if (res.ok) {

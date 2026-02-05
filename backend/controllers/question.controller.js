@@ -34,6 +34,8 @@ const getTodayQuestion = async (req, res) => {
     const defaultQuestion = {
       _id: 'default-' + Date.now(),
       text: "Quelle est votre plus grande réussite cette année ?",
+      text_fr: "Quelle est votre plus grande réussite cette année ?",
+      text_en: "What is your greatest achievement this year?",
       category: "Réflexion",
       active: true,
       createdAt: new Date(),
@@ -79,6 +81,8 @@ const getTodayQuestion = async (req, res) => {
     const fallbackQuestion = {
       _id: 'fallback-' + Date.now(),
       text: "Quelle est votre plus grande réussite cette année ?",
+      text_fr: "Quelle est votre plus grande réussite cette année ?",
+      text_en: "What is your greatest achievement this year?",
       category: "Réflexion",
       active: true,
       createdAt: new Date(),
