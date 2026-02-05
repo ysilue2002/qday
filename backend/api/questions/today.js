@@ -41,17 +41,21 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
   
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
   
-  if (req.method !== 'GET') {
+  // Accepter GET et POST pour éviter le cache
+  if (req.method !== 'GET' && req.method !== 'POST') {
     return res.status(405).json({ message: 'Method not allowed' });
   }
   
   try {
-    console.log('=== /api/questions/today called ===');
+    console.log('=== /api/questions/today called ===', req.method);
     
     // Question par défaut garantie
     const defaultQuestion = {
@@ -70,17 +74,23 @@ export default async function handler(req, res) {
     
     if (connected) {
       try {
-        // Chercher question active
-        const activeQuestion = await Question.findOne({ active: true });
+        // FORCER le rechargement si demandé
+        const forceRefresh = req.method === 'POST' || req.query.fresh;
+        if (forceRefresh) {
+          console.log('🔄 FORCE REFRESH REQUESTED');
+        }
+        
+        // Chercher question active TOUJOURS FRAICHE
+        const activeQuestion = await Question.findOne({ active: true }).lean();
         if (activeQuestion) {
-          console.log('✅ Question active trouvée:', activeQuestion.text_fr);
+          console.log('✅ FRESH Active question trouvée:', activeQuestion.text_fr);
           return res.json(activeQuestion);
         }
         
         // Chercher la plus récente
-        const recentQuestion = await Question.findOne().sort({ createdAt: -1 });
+        const recentQuestion = await Question.findOne().sort({ createdAt: -1 }).lean();
         if (recentQuestion) {
-          console.log('✅ Question récente trouvée:', recentQuestion.text_fr);
+          console.log('✅ FRESH Question récente trouvée:', recentQuestion.text_fr);
           return res.json(recentQuestion);
         }
         
