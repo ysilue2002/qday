@@ -10,6 +10,11 @@ let notificationState = {
   items: []
 };
 
+const normalizeId = (value) => {
+  if (!value) return value;
+  return String(value).replace(/^['"]+|['"]+$/g, '');
+};
+
 // Publicités - Configuration optimisée pour mobile
 const currentAds = {
   1: { type: 'adsense', content: { format: 'responsive' } },
@@ -425,16 +430,17 @@ const displayQuestion = (question) => {
 
 // Charger les réponses depuis l'API
 const loadAnswers = async () => {
-  if (!currentQuestion || !currentQuestion._id) {
+  const questionId = normalizeId(currentQuestion?._id);
+  if (!currentQuestion || !questionId) {
     console.error('❌ No question available for loading answers');
     return;
   }
   
   try {
     console.log('🚀 Loading answers from API...');
-    console.log('📝 Question ID:', currentQuestion._id);
+    console.log('📝 Question ID:', questionId);
     
-    const res = await fetch(`/api/answers/question?questionId=${currentQuestion._id}`);
+    const res = await fetch(`/api/answers/question?questionId=${questionId}`);
     console.log('📡 Answers API Response status:', res.status);
     
     if (res.ok) {
@@ -465,11 +471,12 @@ const loadAnswers = async () => {
 const processNotifications = (answers) => {
   try {
     if (currentQuestion && currentQuestion._id) {
+      const safeId = normalizeId(currentQuestion._id);
       const lastQuestionId = localStorage.getItem('qdayLastQuestionId');
-      if (lastQuestionId && lastQuestionId !== currentQuestion._id) {
+      if (lastQuestionId && lastQuestionId !== safeId) {
         pushAdvancedNotification('🆕 Nouvelle question publiée!', 'info');
       }
-      localStorage.setItem('qdayLastQuestionId', currentQuestion._id);
+      localStorage.setItem('qdayLastQuestionId', safeId);
     }
     
     if (!currentUser || !Array.isArray(answers)) return;
@@ -879,7 +886,7 @@ const submitAnswer = async () => {
     return;
   }
   
-  const questionId = currentQuestion._id || 'default-question';
+  const questionId = normalizeId(currentQuestion?._id) || 'default-question';
   console.log('📤 Submitting answer...');
   console.log('📝 Question ID:', questionId);
   console.log('👤 Author:', currentUser);

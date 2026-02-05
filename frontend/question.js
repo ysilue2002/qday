@@ -7,6 +7,11 @@ let notificationState = {
   items: []
 };
 
+const normalizeId = (value) => {
+  if (!value) return value;
+  return String(value).replace(/^['"]+|['"]+$/g, '');
+};
+
 // Variables globales pour le temps réel
 let eventSource = null;
 let isRealTimeEnabled = true;
@@ -204,7 +209,8 @@ const loadUnifiedAnswers = async () => {
   try {
     console.log('=== UNIFIED VERSION - Loading answers from API ===');
     
-    if (!currentQuestion || !currentQuestion._id) {
+    const questionId = normalizeId(currentQuestion?._id);
+    if (!currentQuestion || !questionId) {
       console.log('No current question, showing empty answers');
       document.getElementById("answersBox").innerHTML = `
         <div style="text-align: center; padding: 20px; color: #666; background: #f8f9fa; border-radius: 10px; margin: 10px 0;">
@@ -218,7 +224,7 @@ const loadUnifiedAnswers = async () => {
     // ÉTAPE 1: Essayer l'API MongoDB
     try {
       console.log('Trying API for answers...');
-      const res = await fetch(`/api/answers/question?questionId=${currentQuestion._id}`);
+      const res = await fetch(`/api/answers/question?questionId=${questionId}`);
       console.log('Answers API Response status:', res.status);
       
       if (res.ok) {
@@ -257,7 +263,7 @@ const loadUnifiedAnswers = async () => {
     console.log('API failed, checking localStorage for answers...');
     
     // ÉTAPE 2: Essayer localStorage
-    const storageKey = `qday_answers_${currentQuestion._id}`;
+    const storageKey = `qday_answers_${questionId}`;
     const storedAnswers = localStorage.getItem(storageKey);
     
     if (storedAnswers) {
@@ -387,11 +393,12 @@ const displayAnswers = (answers) => {
 const processNotifications = (answers) => {
   try {
     if (currentQuestion && currentQuestion._id) {
+      const safeId = normalizeId(currentQuestion._id);
       const lastQuestionId = localStorage.getItem('qdayLastQuestionId');
-      if (lastQuestionId && lastQuestionId !== currentQuestion._id) {
+      if (lastQuestionId && lastQuestionId !== safeId) {
         pushAdvancedNotification('🆕 Nouvelle question publiée!', 'info');
       }
-      localStorage.setItem('qdayLastQuestionId', currentQuestion._id);
+      localStorage.setItem('qdayLastQuestionId', safeId);
     }
     
     if (!currentUser || !Array.isArray(answers)) return;
@@ -432,7 +439,8 @@ const submitUnifiedAnswer = async () => {
     return;
   }
   
-  if (!currentQuestion || !currentQuestion._id) {
+  const questionId = normalizeId(currentQuestion?._id);
+  if (!currentQuestion || !questionId) {
     console.error('No current question available');
     alert(currentLang === 'fr' ? 'Pas de question disponible' : 'No question available');
     return;
@@ -449,7 +457,7 @@ const submitUnifiedAnswer = async () => {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            questionId: currentQuestion._id,
+            questionId,
             author: currentUser,
             text: text,
             language: currentLang,
@@ -487,7 +495,7 @@ const submitUnifiedAnswer = async () => {
     console.log('Saving to localStorage...');
     
     // ÉTAPE 2: Sauvegarder dans localStorage (toujours)
-    const storageKey = `qday_answers_${currentQuestion._id}`;
+    const storageKey = `qday_answers_${questionId}`;
     let existingAnswers = [];
     
     const storedAnswers = localStorage.getItem(storageKey);
@@ -553,7 +561,7 @@ const startRealTimeStream = () => {
   console.log('🚀 Démarrage du stream temps réel pour:', currentQuestion._id);
   
   try {
-    eventSource = new EventSource(`/api/answers/stream?questionId=${currentQuestion._id}`);
+    eventSource = new EventSource(`/api/answers/stream?questionId=${normalizeId(currentQuestion?._id)}`);
     
     eventSource.onopen = () => {
       console.log('✅ Stream temps réel connecté');
@@ -785,7 +793,7 @@ const likeAnswer = async (answerId) => {
     
     // Essayer de charger depuis l'API
     try {
-      const res = await fetch(`/api/answers/question?questionId=${currentQuestion._id}`);
+      const res = await fetch(`/api/answers/question?questionId=${normalizeId(currentQuestion?._id)}`);
       const apiAnswers = await res.json();
       if (Array.isArray(apiAnswers)) {
         allAnswers = apiAnswers;
@@ -797,7 +805,7 @@ const likeAnswer = async (answerId) => {
     // Charger les réponses locales
     const localAnswers = JSON.parse(localStorage.getItem('localAnswers') || '[]');
     const questionLocalAnswers = localAnswers.filter(answer => 
-      answer.questionId === currentQuestion._id
+      answer.questionId === normalizeId(currentQuestion?._id)
     );
     
     // Combiner les réponses
@@ -868,7 +876,7 @@ const dislikeAnswer = async (answerId) => {
     let allAnswers = [];
     
     try {
-      const res = await fetch(`/api/answers/question?questionId=${currentQuestion._id}`);
+      const res = await fetch(`/api/answers/question?questionId=${normalizeId(currentQuestion?._id)}`);
       const apiAnswers = await res.json();
       if (Array.isArray(apiAnswers)) {
         allAnswers = apiAnswers;
@@ -879,7 +887,7 @@ const dislikeAnswer = async (answerId) => {
     
     const localAnswers = JSON.parse(localStorage.getItem('localAnswers') || '[]');
     const questionLocalAnswers = localAnswers.filter(answer => 
-      answer.questionId === currentQuestion._id
+      answer.questionId === normalizeId(currentQuestion?._id)
     );
     
     allAnswers = [...allAnswers, ...questionLocalAnswers];
