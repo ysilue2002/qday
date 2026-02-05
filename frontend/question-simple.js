@@ -322,7 +322,7 @@ const loadAnswers = async () => {
     console.log('🚀 Loading answers from API...');
     console.log('📝 Question ID:', currentQuestion._id);
     
-    const res = await fetch(`/api/answers/question/${currentQuestion._id}`);
+    const res = await fetch(`/api/answers/question?questionId=${currentQuestion._id}`);
     console.log('📡 Answers API Response status:', res.status);
     
     if (res.ok) {

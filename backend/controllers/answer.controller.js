@@ -1,5 +1,6 @@
 // controllers/answer.controller.js
 const Answer = require("../models/Answer");
+const mongoose = require("mongoose");
 
 // Créer une réponse (pseudo libre)
 const createAnswer = async (req, res) => {
@@ -28,7 +29,17 @@ const createAnswer = async (req, res) => {
 // Récupérer les réponses d’une question
 const getAnswersByQuestion = async (req, res) => {
   try {
-    const answers = await Answer.find({ questionId: req.params.questionId })
+    const questionId = req.params.questionId || req.query.questionId;
+    if (!questionId) {
+      return res.status(400).json({ message: "questionId requis" });
+    }
+
+    // Éviter les CastError si l'ID n'est pas un ObjectId
+    if (!mongoose.Types.ObjectId.isValid(questionId)) {
+      return res.json([]);
+    }
+
+    const answers = await Answer.find({ questionId })
       .sort({ createdAt: -1 });
 
     res.json(answers);

@@ -11,7 +11,8 @@ const {
 // Répondre à la question
 router.post("/", createAnswer);
 
-// Récupérer réponses d'une question
+// Récupérer réponses d'une question (query ou param)
+router.get("/question", getAnswersByQuestion);
 router.get("/question/:questionId", getAnswersByQuestion);
 
 // Like une réponse

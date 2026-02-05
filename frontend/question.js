@@ -214,7 +214,7 @@ const loadUnifiedAnswers = async () => {
     // ÉTAPE 1: Essayer l'API MongoDB
     try {
       console.log('Trying API for answers...');
-      const res = await fetch(`/api/answers/question/${currentQuestion._id}`);
+      const res = await fetch(`/api/answers/question?questionId=${currentQuestion._id}`);
       console.log('Answers API Response status:', res.status);
       
       if (res.ok) {
@@ -712,7 +712,7 @@ const likeAnswer = async (answerId) => {
     
     // Essayer de charger depuis l'API
     try {
-      const res = await fetch(`/api/answers/question/${currentQuestion._id}`);
+      const res = await fetch(`/api/answers/question?questionId=${currentQuestion._id}`);
       const apiAnswers = await res.json();
       if (Array.isArray(apiAnswers)) {
         allAnswers = apiAnswers;
