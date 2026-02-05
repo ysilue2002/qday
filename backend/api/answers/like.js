@@ -31,9 +31,20 @@ const AnswerSchema = new mongoose.Schema({
   text: { type: String, required: true, trim: true },
   language: { type: String, default: 'fr' },
   likes: [{ type: String }], // Tableau de pseudos
+  dislikes: [{ type: String }],
+  reports: [{
+    author: { type: String, required: true },
+    reason: { type: String },
+    createdAt: { type: Date, default: Date.now }
+  }],
   comments: [{
     author: { type: String, required: true },
     text: { type: String, required: true },
+    reports: [{
+      author: { type: String, required: true },
+      reason: { type: String },
+      createdAt: { type: Date, default: Date.now }
+    }],
     createdAt: { type: Date, default: Date.now }
   }],
   createdAt: { type: Date, default: Date.now },
@@ -71,8 +82,13 @@ export default async function handler(req, res) {
     if (req.method === 'POST') {
       const { author } = req.body;
       
-      if (!author) {
+      const safeAuthor = typeof author === 'string' ? author.trim() : '';
+      if (!safeAuthor) {
         return res.status(400).json({ message: 'Author requis' });
+      }
+      
+      if (safeAuthor.length < 2 || safeAuthor.length > 50) {
+        return res.status(400).json({ message: 'Auteur invalide (2-50 caractères)' });
       }
       
       // Connexion à MongoDB
@@ -89,7 +105,7 @@ export default async function handler(req, res) {
       }
       
       // Vérifier si l'utilisateur a déjà liké
-      const likeIndex = answer.likes.indexOf(author);
+      const likeIndex = answer.likes.indexOf(safeAuthor);
       
       if (likeIndex > -1) {
         // Retirer le like
@@ -97,7 +113,9 @@ export default async function handler(req, res) {
         console.log('Like removed');
       } else {
         // Ajouter le like
-        answer.likes.push(author);
+        answer.likes.push(safeAuthor);
+        // Enlever le dislike si présent
+        answer.dislikes = (answer.dislikes || []).filter(d => d !== safeAuthor);
         console.log('Like added');
       }
       

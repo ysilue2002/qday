@@ -31,9 +31,20 @@ const AnswerSchema = new mongoose.Schema({
   text: { type: String, required: true, trim: true },
   language: { type: String, default: 'fr' },
   likes: [{ type: String }], // Tableau de pseudos
+  dislikes: [{ type: String }],
+  reports: [{
+    author: { type: String, required: true },
+    reason: { type: String },
+    createdAt: { type: Date, default: Date.now }
+  }],
   comments: [{
     author: { type: String, required: true },
     text: { type: String, required: true },
+    reports: [{
+      author: { type: String, required: true },
+      reason: { type: String },
+      createdAt: { type: Date, default: Date.now }
+    }],
     createdAt: { type: Date, default: Date.now }
   }],
   createdAt: { type: Date, default: Date.now },
@@ -71,11 +82,22 @@ export default async function handler(req, res) {
     if (req.method === 'POST') {
       const { author, text } = req.body;
       
-      if (!author || !text) {
+      const safeAuthor = typeof author === 'string' ? author.trim() : '';
+      const safeText = typeof text === 'string' ? text.trim() : '';
+      
+      if (!safeAuthor || !safeText) {
         return res.status(400).json({ 
           message: 'Author et text requis',
           received: { author: !!author, text: !!text }
         });
+      }
+      
+      if (safeText.length < 2 || safeText.length > 500) {
+        return res.status(400).json({ message: 'Texte invalide (2-500 caractères)' });
+      }
+      
+      if (safeAuthor.length < 2 || safeAuthor.length > 50) {
+        return res.status(400).json({ message: 'Auteur invalide (2-50 caractères)' });
       }
       
       // Connexion à MongoDB
@@ -94,8 +116,8 @@ export default async function handler(req, res) {
       
       // Ajouter le commentaire
       const newComment = {
-        author: author,
-        text: text,
+        author: safeAuthor,
+        text: safeText,
         createdAt: new Date()
       };
       

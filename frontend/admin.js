@@ -3,6 +3,8 @@
 // Variables globales
 let currentQuestions = [];
 let currentAds = {};
+let currentModerationItems = [];
+let cachedAnswersByQuestion = {};
 
 // Initialisation
 document.addEventListener("DOMContentLoaded", () => {
@@ -131,6 +133,17 @@ const setupEventListeners = () => {
   if (isTodayQuestion) {
     console.log('Found today question checkbox');
     isTodayQuestion.addEventListener('change', handleTodayQuestionChange);
+  }
+
+  // Filtres modération
+  const moderationFilter = document.getElementById('moderationFilter');
+  if (moderationFilter) {
+    moderationFilter.addEventListener('change', applyModerationFilters);
+  }
+  
+  const moderationSearch = document.getElementById('moderationSearch');
+  if (moderationSearch) {
+    moderationSearch.addEventListener('input', applyModerationFilters);
   }
 
   // Boutons de modération - CORRIGÉ
@@ -925,34 +938,239 @@ const deleteQuestion = (questionId) => {
 };
 
 // Fonctions de modération
-const loadModeration = () => {
-  console.log('Loading moderation data...');
+const fetchQuestionsFromAPI = async () => {
+  try {
+    const res = await fetch('/api/questions');
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch (err) {
+    console.error('API questions failed:', err);
+  }
+  
+  const stored = localStorage.getItem('qdayQuestions');
+  return stored ? JSON.parse(stored) : [];
+};
+
+const fetchAnswersForQuestion = async (questionId) => {
+  if (cachedAnswersByQuestion[questionId]) {
+    return cachedAnswersByQuestion[questionId];
+  }
+  
+  try {
+    const res = await fetch(`/api/answers/question?questionId=${questionId}`);
+    if (res.ok) {
+      const answers = await res.json();
+      cachedAnswersByQuestion[questionId] = Array.isArray(answers) ? answers : [];
+      return cachedAnswersByQuestion[questionId];
+    }
+  } catch (err) {
+    console.error('API answers failed:', err);
+  }
+  
+  cachedAnswersByQuestion[questionId] = [];
+  return [];
+};
+
+const buildModerationItems = async (questions) => {
+  const items = [];
+  cachedAnswersByQuestion = {};
+  
+  for (const question of questions) {
+    const questionText = getQuestionText(question);
+    const answers = await fetchAnswersForQuestion(question._id);
+    
+    answers.forEach((answer) => {
+      items.push({
+        type: 'answer',
+        content: answer.text || '',
+        author: answer.author || 'Anonymous',
+        date: answer.createdAt || new Date().toISOString(),
+        status: 'approved',
+        reports: Array.isArray(answer.reports) ? answer.reports.length : 0,
+        questionText,
+        answerId: answer._id
+      });
+      
+      if (Array.isArray(answer.comments)) {
+        answer.comments.forEach((comment, index) => {
+          items.push({
+            type: 'comment',
+            content: comment.text || '',
+            author: comment.author || 'Anonymous',
+            date: comment.createdAt || new Date().toISOString(),
+            status: 'approved',
+            reports: Array.isArray(comment.reports) ? comment.reports.length : 0,
+            questionText,
+            answerId: answer._id,
+            commentIndex: index
+          });
+        });
+      }
+    });
+  }
+  
+  return items;
+};
+
+const renderModeration = (items) => {
   const moderationList = document.getElementById('moderationList');
-  if (moderationList) {
+  if (!moderationList) return;
+  
+  if (!items || items.length === 0) {
     moderationList.innerHTML = '<p>Aucun contenu à modérer</p>';
+    return;
+  }
+  
+  moderationList.innerHTML = items.map((item) => `
+    <div class="moderation-item" data-type="${item.type}" data-answer-id="${item.answerId}" data-comment-index="${item.commentIndex ?? ''}">
+      <span class="moderation-type ${item.type === 'answer' ? 'type-answer' : 'type-comment'}">
+        ${item.type === 'answer' ? 'Réponse' : 'Commentaire'}
+      </span>
+      <div class="moderation-content" title="${item.content}">${item.content}</div>
+      <div class="moderation-author">${item.author}</div>
+      <div class="moderation-date">${new Date(item.date).toLocaleDateString()}</div>
+      <div class="moderation-reports">
+        <span class="report-count">${item.reports}</span>
+      </div>
+      <div class="moderation-status status-approved">Approuvé</div>
+      <div class="moderation-actions">
+        ${item.type === 'answer' ? `<button class="btn-danger" data-action="delete-answer">Supprimer</button>` : ''}
+        ${item.type === 'comment' ? `<button class="btn-danger" data-action="delete-comment">Supprimer</button>` : ''}
+      </div>
+    </div>
+  `).join('');
+  
+  moderationList.querySelectorAll('[data-action="delete-answer"]').forEach((btn) => {
+    btn.addEventListener('click', async (event) => {
+      const row = event.target.closest('.moderation-item');
+      const answerId = row?.getAttribute('data-answer-id');
+      if (!answerId) return;
+      await deleteAnswerAdmin(answerId);
+      loadModeration();
+    });
+  });
+  
+  moderationList.querySelectorAll('[data-action="delete-comment"]').forEach((btn) => {
+    btn.addEventListener('click', async (event) => {
+      const row = event.target.closest('.moderation-item');
+      const answerId = row?.getAttribute('data-answer-id');
+      const commentIndex = parseInt(row?.getAttribute('data-comment-index'), 10);
+      if (!answerId || Number.isNaN(commentIndex)) return;
+      await deleteCommentAdmin(answerId, commentIndex);
+      loadModeration();
+    });
+  });
+};
+
+const applyModerationFilters = () => {
+  const filter = document.getElementById('moderationFilter')?.value || 'all';
+  const search = document.getElementById('moderationSearch')?.value?.toLowerCase() || '';
+  
+  let filtered = [...currentModerationItems];
+  
+  if (search) {
+    filtered = filtered.filter((item) =>
+      item.content.toLowerCase().includes(search) ||
+      item.author.toLowerCase().includes(search)
+    );
+  }
+  
+  if (filter === 'reported') {
+    filtered = filtered.filter((item) => item.reports > 0);
+  }
+  
+  renderModeration(filtered);
+};
+
+const deleteAnswerAdmin = async (answerId) => {
+  try {
+    const res = await fetch(`/api/answers/${answerId}/delete`, { method: 'POST' });
+    if (!res.ok) {
+      console.error('Delete answer failed');
+    }
+  } catch (err) {
+    console.error('Delete answer error:', err);
   }
 };
 
-const loadStats = () => {
-  console.log('Loading statistics...');
-  const totalQuestionsElement = document.getElementById('totalQuestions');
-  if (totalQuestionsElement) {
-    totalQuestionsElement.textContent = currentQuestions.length;
+const deleteCommentAdmin = async (answerId, index) => {
+  try {
+    const res = await fetch(`/api/answers/${answerId}/comment-delete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ index })
+    });
+    if (!res.ok) {
+      console.error('Delete comment failed');
+    }
+  } catch (err) {
+    console.error('Delete comment error:', err);
+  }
+};
+
+const loadModeration = async () => {
+  console.log('Loading moderation data...');
+  const moderationList = document.getElementById('moderationList');
+  if (moderationList) {
+    moderationList.innerHTML = '<p>Chargement...</p>';
   }
   
+  const questions = await fetchQuestionsFromAPI();
+  currentModerationItems = await buildModerationItems(questions);
+  
+  const reportedCount = document.getElementById('reportedCount');
+  if (reportedCount) {
+    reportedCount.textContent = currentModerationItems.filter(i => i.reports > 0).length;
+  }
+  
+  applyModerationFilters();
+};
+
+const loadStats = async () => {
+  console.log('Loading statistics...');
+  const questions = await fetchQuestionsFromAPI();
+  const answersByQuestion = [];
+  let totalAnswers = 0;
+  let totalLikes = 0;
+  let totalDislikes = 0;
+  let totalComments = 0;
+  const uniqueAuthors = new Set();
+  
+  for (const question of questions) {
+    const answers = await fetchAnswersForQuestion(question._id);
+    answersByQuestion.push({ question, answers });
+    totalAnswers += answers.length;
+    answers.forEach((answer) => {
+      if (answer.author) uniqueAuthors.add(answer.author);
+      totalLikes += Array.isArray(answer.likes) ? answer.likes.length : 0;
+      totalDislikes += Array.isArray(answer.dislikes) ? answer.dislikes.length : 0;
+      totalComments += Array.isArray(answer.comments) ? answer.comments.length : 0;
+    });
+  }
+  
+  const totalQuestionsElement = document.getElementById('totalQuestions');
+  if (totalQuestionsElement) {
+    totalQuestionsElement.textContent = questions.length;
+  }
+  
+  const todayQuestion = questions.find(q => q.active);
+  const todayAnswers = todayQuestion ? (cachedAnswersByQuestion[todayQuestion._id] || []) : [];
   const todayAnswersElement = document.getElementById('todayAnswers');
   if (todayAnswersElement) {
-    todayAnswersElement.textContent = '0';
+    todayAnswersElement.textContent = todayAnswers.length;
   }
   
   const activeUsersElement = document.getElementById('activeUsers');
   if (activeUsersElement) {
-    activeUsersElement.textContent = '0';
+    activeUsersElement.textContent = uniqueAuthors.size;
   }
   
   const engagementRateElement = document.getElementById('engagementRate');
   if (engagementRateElement) {
-    engagementRateElement.textContent = '0%';
+    const interactions = totalLikes + totalDislikes + totalComments;
+    const rate = totalAnswers > 0 ? Math.round((interactions / totalAnswers) * 100) : 0;
+    engagementRateElement.textContent = `${rate}%`;
   }
 };
 

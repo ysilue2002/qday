@@ -40,9 +40,20 @@ const AnswerSchema = new mongoose.Schema({
   text: String,
   language: String,
   likes: [String],
+  dislikes: [String],
+  reports: [{
+    author: String,
+    reason: String,
+    createdAt: { type: Date, default: Date.now }
+  }],
   comments: [{
     author: String,
     text: String,
+    reports: [{
+      author: String,
+      reason: String,
+      createdAt: { type: Date, default: Date.now }
+    }],
     createdAt: { type: Date, default: Date.now }
   }],
   createdAt: { type: Date, default: Date.now }
@@ -97,13 +108,24 @@ export default async function handler(req, res) {
       console.log('📝 Text:', text);
       console.log('📝 Language:', language);
       
-      if (!questionId || !author || !text) {
+      const safeAuthor = typeof author === 'string' ? author.trim() : '';
+      const safeText = typeof text === 'string' ? text.trim() : '';
+
+      if (!questionId || !safeAuthor || !safeText) {
         console.log('❌ Champs requis manquants:', { questionId: !!questionId, author: !!author, text: !!text });
         return res.status(400).json({ 
           message: 'Champs requis manquants',
           required: ['questionId', 'author', 'text'],
           received: { questionId: !!questionId, author: !!author, text: !!text }
         });
+      }
+      
+      if (safeText.length < 2 || safeText.length > 500) {
+        return res.status(400).json({ message: 'Texte invalide (2-500 caractères)' });
+      }
+      
+      if (safeAuthor.length < 2 || safeAuthor.length > 50) {
+        return res.status(400).json({ message: 'Auteur invalide (2-50 caractères)' });
       }
       
       // Essayer de se connecter à MongoDB
@@ -116,10 +138,12 @@ export default async function handler(req, res) {
           
           const answer = new Answer({ 
             questionId, 
-            author, 
-            text, 
+            author: safeAuthor, 
+            text: safeText, 
             language: language || 'fr',
             likes: [],
+            dislikes: [],
+            reports: [],
             comments: []
           });
           

@@ -43,8 +43,28 @@
       "dest": "/backend/api/answers/like.js"
     },
     {
+      "src": "/api/answers/(.*)/dislike",
+      "dest": "/backend/api/answers/dislike.js"
+    },
+    {
       "src": "/api/answers/(.*)/comment",
       "dest": "/backend/api/answers/comment.js"
+    },
+    {
+      "src": "/api/answers/(.*)/report",
+      "dest": "/backend/api/answers/report.js"
+    },
+    {
+      "src": "/api/answers/(.*)/comment-report",
+      "dest": "/backend/api/answers/comment-report.js"
+    },
+    {
+      "src": "/api/answers/(.*)/delete",
+      "dest": "/backend/api/answers/delete.js"
+    },
+    {
+      "src": "/api/answers/(.*)/comment-delete",
+      "dest": "/backend/api/answers/comment-delete.js"
     },
     {
       "src": "/api/(.*)",
@@ -57,6 +77,10 @@
     {
       "src": "/question",
       "dest": "/frontend/question.html"
+    },
+    {
+      "src": "/history",
+      "dest": "/frontend/history.html"
     },
     {
       "src": "/(.*)",

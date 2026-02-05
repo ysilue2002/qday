@@ -16,12 +16,36 @@ const translations = {
     no_answers: "Aucune réponse pour le moment",
     no_active_question: "Aucune question active pour le moment",
     loading_error: "Erreur de chargement des réponses",
+
+    // Navigation
+    nav_today: "Question du jour",
+    nav_history: "Historique",
+
+    // Page historique
+    history_title: "Historique des questions",
+    history_subtitle: "Retrouvez les questions précédentes et leurs réponses.",
+    history_loading: "Chargement...",
+    history_empty: "Aucune question disponible",
+    history_error: "Erreur de chargement des questions",
+    history_select: "Sélectionnez une question pour voir les réponses.",
+    history_answers: "Réponses",
+    history_no_answers: "Aucune réponse pour cette question",
+    history_no_comments: "Aucun commentaire pour le moment",
+    history_active_badge: "Active",
+
+    // Notifications
+    notif_title: "Notifications",
+    notif_empty: "Aucune notification",
+    notif_clear: "Tout effacer",
+    notif_enable: "Activer les notifications",
     
     // Actions sur réponses
     comments: "Commentaires",
     add_comment: "Ajouter un commentaire...",
     send: "Envoyer",
     like: "J'aime",
+    dislike: "Je n'aime pas",
+    report: "Signaler",
     
     // Page admin
     admin_title: "QDAY - Administration",
@@ -126,12 +150,36 @@ const translations = {
     no_answers: "No answers yet",
     no_active_question: "No active question at the moment",
     loading_error: "Error loading answers",
+
+    // Navigation
+    nav_today: "Today's Question",
+    nav_history: "History",
+
+    // History page
+    history_title: "Question History",
+    history_subtitle: "Browse previous questions and their answers.",
+    history_loading: "Loading...",
+    history_empty: "No questions available",
+    history_error: "Error loading questions",
+    history_select: "Select a question to see its answers.",
+    history_answers: "Answers",
+    history_no_answers: "No answers for this question",
+    history_no_comments: "No comments yet",
+    history_active_badge: "Active",
+
+    // Notifications
+    notif_title: "Notifications",
+    notif_empty: "No notifications",
+    notif_clear: "Clear all",
+    notif_enable: "Enable notifications",
     
     // Answer actions
     comments: "Comments",
     add_comment: "Add a comment...",
     send: "Send",
     like: "Like",
+    dislike: "Dislike",
+    report: "Report",
     
     // Admin page
     admin_title: "QDAY - Administration",

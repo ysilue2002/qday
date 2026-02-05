@@ -12,6 +12,13 @@ const commentSchema = new mongoose.Schema(
       required: true,
       trim: true
     },
+    reports: [
+      {
+        author: { type: String, required: true, trim: true },
+        reason: { type: String, trim: true },
+        date: { type: Date, default: Date.now }
+      }
+    ],
     date: {
       type: Date,
       default: Date.now
@@ -42,6 +49,19 @@ const answerSchema = new mongoose.Schema(
       {
         type: String,
         required: true
+      }
+    ],
+    dislikes: [
+      {
+        type: String,
+        required: true
+      }
+    ],
+    reports: [
+      {
+        author: { type: String, required: true, trim: true },
+        reason: { type: String, trim: true },
+        date: { type: Date, default: Date.now }
       }
     ],
     comments: [commentSchema]

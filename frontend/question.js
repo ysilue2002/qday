@@ -2,6 +2,10 @@
 let currentUser = '';
 let currentQuestion = null;
 let currentLang = localStorage.getItem('qdayLanguage') || 'fr';
+let notificationState = {
+  unreadCount: 0,
+  items: []
+};
 
 // Variables globales pour le temps réel
 let eventSource = null;
@@ -235,6 +239,7 @@ const loadUnifiedAnswers = async () => {
           
           if (filteredAnswers.length > 0) {
             displayAnswers(filteredAnswers);
+            processNotifications(filteredAnswers);
             
             // Démarrer le stream temps réel après avoir chargé les réponses
             setTimeout(() => {
@@ -272,6 +277,7 @@ const loadUnifiedAnswers = async () => {
           
           if (filteredAnswers.length > 0) {
             displayAnswers(filteredAnswers);
+            processNotifications(filteredAnswers);
             
             // Démarrer le stream temps réel même pour localStorage
             setTimeout(() => {
@@ -293,6 +299,8 @@ const loadUnifiedAnswers = async () => {
         <p>🌟 Be the first to answer!</p>
       </div>
     `;
+    
+    processNotifications([]);
     
     // Démarrer le stream temps réel même sans réponses
     setTimeout(() => {
@@ -316,8 +324,11 @@ const displayAnswers = (answers) => {
   let answersHTML = '';
   
   answers.forEach(answer => {
-    const likes = answer.likes || 0;
-    const liked = answer.likedBy?.includes(currentUser?.pseudo) || false;
+    const likes = Array.isArray(answer.likes) ? answer.likes.length : (answer.likes || 0);
+    const dislikes = Array.isArray(answer.dislikes) ? answer.dislikes.length : (answer.dislikes || 0);
+    const liked = Array.isArray(answer.likes) ? answer.likes.includes(currentUser) : false;
+    const disliked = Array.isArray(answer.dislikes) ? answer.dislikes.includes(currentUser) : false;
+    const comments = Array.isArray(answer.comments) ? answer.comments : [];
     
     answersHTML += `
       <div class="answer-card" style="background: white; border: 1px solid #e0e0e0; border-radius: 10px; padding: 15px; margin: 10px 0; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
@@ -326,22 +337,84 @@ const displayAnswers = (answers) => {
           <small style="color: #666;">${new Date(answer.createdAt).toLocaleDateString()}</small>
         </div>
         <p style="margin: 10px 0; line-height: 1.5; color: #444;">${answer.text}</p>
-        <div class="answer-actions" style="display: flex; gap: 10px; align-items: center;">
+        <div class="answer-actions" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
           <button onclick="likeAnswer('${answer._id}')" style="background: ${liked ? '#ff6b6b' : '#f0f0f0'}; color: ${liked ? 'white' : '#333'}; border: none; padding: 8px 12px; border-radius: 5px; cursor: pointer; font-size: 0.9rem;">
             ❤️ ${likes}
           </button>
+          <button onclick="dislikeAnswer('${answer._id}')" style="background: ${disliked ? '#6c757d' : '#f0f0f0'}; color: ${disliked ? 'white' : '#333'}; border: none; padding: 8px 12px; border-radius: 5px; cursor: pointer; font-size: 0.9rem;">
+            👎 ${dislikes}
+          </button>
           <button onclick="toggleComments('${answer._id}')" style="background: #f0f0f0; color: #333; border: none; padding: 8px 12px; border-radius: 5px; cursor: pointer; font-size: 0.9rem;">
-            💬 ${answer.comments?.length || 0}
+            💬 ${comments.length}
+          </button>
+          <button onclick="reportAnswer('${answer._id}')" style="background: #fff3cd; color: #856404; border: 1px solid #ffeeba; padding: 8px 12px; border-radius: 5px; cursor: pointer; font-size: 0.85rem;">
+            🚩 ${t('report')}
           </button>
         </div>
         <div id="comments-${answer._id}" style="display: none; margin-top: 10px; padding-left: 20px; border-left: 3px solid #f0f0f0;">
-          <!-- Comments will be loaded here -->
+          <div style="margin: 8px 0;">
+            ${comments.length === 0 ? `<div style="color:#777; font-style: italic;">${t('history_no_comments')}</div>` : ''}
+            ${comments.map((c, idx) => `
+              <div style="margin: 6px 0; padding: 6px 8px; background: #f8f9fa; border-radius: 6px;">
+                <div style="display: flex; justify-content: space-between; gap: 10px;">
+                  <strong style="font-size: 0.85rem; color: #333;">${c.author || 'Anonymous'}</strong>
+                  <small style="color:#666; font-size:0.75rem;">${new Date(c.createdAt || Date.now()).toLocaleDateString()}</small>
+                </div>
+                <div style="color:#444; font-size:0.9rem;">${c.text || ''}</div>
+                <div style="margin-top: 6px;">
+                  <button onclick="reportComment('${answer._id}', ${idx})" style="background: #fff3cd; color: #856404; border: 1px solid #ffeeba; padding: 4px 8px; border-radius: 5px; cursor: pointer; font-size: 0.75rem;">
+                    🚩 ${t('report')}
+                  </button>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+          <div style="display: flex; gap: 8px; margin-top: 8px;">
+            <input id="comment-input-${answer._id}" data-translate-placeholder="add_comment" placeholder="${t('add_comment')}" style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 6px;" />
+            <button onclick="addComment('${answer._id}')" style="width: auto; padding: 8px 12px; border-radius: 6px; background:#17a2b8; color:#fff; border:none;">
+              ${t('send')}
+            </button>
+          </div>
         </div>
       </div>
     `;
   });
   
   document.getElementById("answersBox").innerHTML = answersHTML;
+};
+
+// Notifications simples (nouvelle question + interactions)
+const processNotifications = (answers) => {
+  try {
+    if (currentQuestion && currentQuestion._id) {
+      const lastQuestionId = localStorage.getItem('qdayLastQuestionId');
+      if (lastQuestionId && lastQuestionId !== currentQuestion._id) {
+        pushAdvancedNotification('🆕 Nouvelle question publiée!', 'info');
+      }
+      localStorage.setItem('qdayLastQuestionId', currentQuestion._id);
+    }
+    
+    if (!currentUser || !Array.isArray(answers)) return;
+    
+    answers.forEach((answer) => {
+      if (answer.author !== currentUser) return;
+      const likesCount = Array.isArray(answer.likes) ? answer.likes.length : 0;
+      const commentsCount = Array.isArray(answer.comments) ? answer.comments.length : 0;
+      const key = `qdayAnswerMeta_${answer._id}`;
+      const prev = JSON.parse(localStorage.getItem(key) || '{}');
+      
+      if (prev.likesCount !== undefined && likesCount > prev.likesCount) {
+        pushAdvancedNotification('💖 Nouveau like sur votre réponse!', 'info');
+      }
+      if (prev.commentsCount !== undefined && commentsCount > prev.commentsCount) {
+        pushAdvancedNotification('💬 Nouveau commentaire sur votre réponse!', 'info');
+      }
+      
+      localStorage.setItem(key, JSON.stringify({ likesCount, commentsCount }));
+    });
+  } catch (err) {
+    console.error('Notification error:', err);
+  }
 };
 
 // Remplacer les fonctions originales
@@ -580,7 +653,7 @@ const addRealTimeAnswer = (answer) => {
     <p style="margin: 10px 0; line-height: 1.5; color: #444;">${answer.text}</p>
     <div class="answer-actions" style="display: flex; gap: 10px; align-items: center;">
       <button onclick="likeAnswer('${answer._id}')" style="background: #f0f0f0; color: #333; border: none; padding: 8px 12px; border-radius: 5px; cursor: pointer; font-size: 0.9rem;">
-        ❤️ ${answer.likes}
+        ❤️ ${Array.isArray(answer.likes) ? answer.likes.length : (answer.likes || 0)}
       </button>
       <button onclick="toggleComments('${answer._id}')" style="background: #f0f0f0; color: #333; border: none; padding: 8px 12px; border-radius: 5px; cursor: pointer; font-size: 0.9rem;">
         💬 0
@@ -738,84 +811,266 @@ const likeAnswer = async (answerId) => {
     }
     
     // Vérifier si l'utilisateur a déjà liké
-    const hasLiked = answer.likes && answer.likes.includes(currentUser);
+    const hasLiked = Array.isArray(answer.likes) && answer.likes.includes(currentUser);
     console.log('User has liked:', hasLiked);
-    
-    if (hasLiked) {
-      // DISLIKE - Retirer le like
-      console.log('Removing like...');
-      
-      // Essayer de retirer le like via l'API
-      try {
-        const res = await fetch(`/api/answers/${answerId}/unlike`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ author: currentUser })
-        });
-        
-        if (res.ok) {
-          console.log('Like removed via API');
-          loadAnswers();
-          return;
-        }
-      } catch (apiErr) {
-        console.log('API unlike failed, using localStorage fallback');
-      }
-      
-      // Fallback localStorage - retirer le like localement
-      const updatedLocalAnswers = localAnswers.map(a => {
-        if (a._id === answerId) {
-          return {
-            ...a,
-            likes: (a.likes || []).filter(like => like !== currentUser)
-          };
-        }
-        return a;
+
+    // Essayer de toggle le like via l'API
+    try {
+      const res = await fetch(`/api/answers/${answerId}/like`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ author: currentUser })
       });
       
-      localStorage.setItem('localAnswers', JSON.stringify(updatedLocalAnswers));
-      console.log('Like removed locally');
-      loadAnswers();
-      
-    } else {
-      // LIKE - Ajouter le like
-      console.log('Adding like...');
-      
-      // Essayer d'ajouter le like via l'API
-      try {
-        const res = await fetch(`/api/answers/${answerId}/like`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ author: currentUser })
-        });
-        
-        if (res.ok) {
-          console.log('Like added via API');
-          loadAnswers();
-          return;
-        }
-      } catch (apiErr) {
-        console.log('API like failed, using localStorage fallback');
+      if (res.ok) {
+        console.log('Like toggled via API');
+        loadAnswers();
+        return;
       }
-      
-      // Fallback localStorage - ajouter le like localement
-      const updatedLocalAnswers = localAnswers.map(a => {
-        if (a._id === answerId) {
-          return {
-            ...a,
-            likes: [...(a.likes || []), currentUser]
-          };
-        }
-        return a;
-      });
-      
-      localStorage.setItem('localAnswers', JSON.stringify(updatedLocalAnswers));
-      console.log('Like added locally');
-      loadAnswers();
+    } catch (apiErr) {
+      console.log('API like failed, using localStorage fallback');
     }
+
+    // Fallback localStorage - toggle localement
+    const updatedLocalAnswers = localAnswers.map(a => {
+      if (a._id === answerId) {
+        const existingLikes = Array.isArray(a.likes) ? a.likes : [];
+        const existingDislikes = Array.isArray(a.dislikes) ? a.dislikes : [];
+        const alreadyLiked = existingLikes.includes(currentUser);
+        return {
+          ...a,
+          likes: alreadyLiked
+            ? existingLikes.filter(like => like !== currentUser)
+            : [...existingLikes, currentUser],
+          dislikes: alreadyLiked
+            ? existingDislikes
+            : existingDislikes.filter(d => d !== currentUser)
+        };
+      }
+      return a;
+    });
+
+    localStorage.setItem('localAnswers', JSON.stringify(updatedLocalAnswers));
+    console.log('Like toggled locally');
+    loadAnswers();
     
   } catch (err) {
     console.error('Error in like/dislike:', err);
+  }
+};
+
+// Dislike une réponse
+const dislikeAnswer = async (answerId) => {
+  console.log('Dislike answer:', answerId);
+  
+  try {
+    // Récupérer toutes les réponses (API + localStorage)
+    let allAnswers = [];
+    
+    try {
+      const res = await fetch(`/api/answers/question?questionId=${currentQuestion._id}`);
+      const apiAnswers = await res.json();
+      if (Array.isArray(apiAnswers)) {
+        allAnswers = apiAnswers;
+      }
+    } catch (apiErr) {
+      console.log('API not available for dislike, using localStorage');
+    }
+    
+    const localAnswers = JSON.parse(localStorage.getItem('localAnswers') || '[]');
+    const questionLocalAnswers = localAnswers.filter(answer => 
+      answer.questionId === currentQuestion._id
+    );
+    
+    allAnswers = [...allAnswers, ...questionLocalAnswers];
+    const answer = allAnswers.find(a => a._id === answerId);
+    if (!answer) return;
+    
+    // Essayer l'API
+    try {
+      const res = await fetch(`/api/answers/${answerId}/dislike`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ author: currentUser })
+      });
+      
+      if (res.ok) {
+        loadAnswers();
+        return;
+      }
+    } catch (apiErr) {
+      console.log('API dislike failed, using localStorage fallback');
+    }
+    
+    // Fallback localStorage - toggle dislike
+    const updatedLocalAnswers = localAnswers.map(a => {
+      if (a._id === answerId) {
+        const existingDislikes = Array.isArray(a.dislikes) ? a.dislikes : [];
+        const alreadyDisliked = existingDislikes.includes(currentUser);
+        const newDislikes = alreadyDisliked
+          ? existingDislikes.filter(d => d !== currentUser)
+          : [...existingDislikes, currentUser];
+        const newLikes = Array.isArray(a.likes) ? a.likes.filter(like => like !== currentUser) : [];
+        return { ...a, dislikes: newDislikes, likes: newLikes };
+      }
+      return a;
+    });
+    
+    localStorage.setItem('localAnswers', JSON.stringify(updatedLocalAnswers));
+    loadAnswers();
+  } catch (err) {
+    console.error('Error in dislike:', err);
+  }
+};
+
+// Signaler une réponse
+const reportAnswer = async (answerId) => {
+  if (!currentUser) {
+    showNotification(currentLang === 'fr' ? 'Veuillez vous connecter' : 'Please sign in', 'warning');
+    return;
+  }
+  const rawReason = prompt(currentLang === 'fr' ? 'Pourquoi signalez-vous cette réponse ?' : 'Why are you reporting this answer?');
+  if (rawReason === null) return;
+  const reason = rawReason.trim();
+  
+  try {
+    await fetch(`/api/answers/${answerId}/report`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ author: currentUser, reason })
+    });
+    showNotification(currentLang === 'fr' ? 'Signalement envoyé' : 'Report submitted', 'info');
+  } catch (err) {
+    console.error('Report answer error:', err);
+  }
+};
+
+// Signaler un commentaire
+const reportComment = async (answerId, index) => {
+  if (!currentUser) {
+    showNotification(currentLang === 'fr' ? 'Veuillez vous connecter' : 'Please sign in', 'warning');
+    return;
+  }
+  const rawReason = prompt(currentLang === 'fr' ? 'Pourquoi signalez-vous ce commentaire ?' : 'Why are you reporting this comment?');
+  if (rawReason === null) return;
+  const reason = rawReason.trim();
+  
+  try {
+    await fetch(`/api/answers/${answerId}/comment-report`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ author: currentUser, reason, index })
+    });
+    showNotification(currentLang === 'fr' ? 'Signalement envoyé' : 'Report submitted', 'info');
+  } catch (err) {
+    console.error('Report comment error:', err);
+  }
+};
+
+// Advanced notifications (in-app + browser)
+const loadNotificationState = () => {
+  try {
+    const stored = localStorage.getItem('qdayNotifications');
+    notificationState.items = stored ? JSON.parse(stored) : [];
+    notificationState.unreadCount = notificationState.items.filter(n => n.unread).length;
+  } catch {
+    notificationState.items = [];
+    notificationState.unreadCount = 0;
+  }
+};
+
+const saveNotificationState = () => {
+  localStorage.setItem('qdayNotifications', JSON.stringify(notificationState.items.slice(0, 100)));
+};
+
+const renderNotifications = () => {
+  const badge = document.getElementById('notifBadge');
+  const list = document.getElementById('notifList');
+  
+  if (badge) {
+    badge.textContent = notificationState.unreadCount;
+    badge.style.display = notificationState.unreadCount > 0 ? 'inline-block' : 'none';
+  }
+  
+  if (!list) return;
+  
+  if (notificationState.items.length === 0) {
+    list.innerHTML = `<div class="notif-empty" data-translate="notif_empty">${t('notif_empty')}</div>`;
+    if (window.updateAllTexts) {
+      window.updateAllTexts();
+    }
+    return;
+  }
+  
+  list.innerHTML = notificationState.items.map((n) => `
+    <div class="notif-item ${n.unread ? 'unread' : ''}">
+      ${n.message}
+      <div style="color:#888; font-size:0.7rem; margin-top:0.2rem;">${new Date(n.date).toLocaleString()}</div>
+    </div>
+  `).join('');
+};
+
+const pushAdvancedNotification = (message, type = 'info') => {
+  const entry = {
+    id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    message,
+    type,
+    date: new Date().toISOString(),
+    unread: true
+  };
+  
+  notificationState.items.unshift(entry);
+  notificationState.unreadCount += 1;
+  saveNotificationState();
+  renderNotifications();
+  
+  if ('Notification' in window && Notification.permission === 'granted') {
+    try {
+      new Notification('Qday', { body: message });
+    } catch (err) {
+      console.error('Browser notification failed:', err);
+    }
+  }
+};
+
+const setupNotificationUI = () => {
+  const btn = document.getElementById('notifBtn');
+  const panel = document.getElementById('notifPanel');
+  const clearBtn = document.getElementById('notifClearBtn');
+  const enableBtn = document.getElementById('notifEnableBtn');
+  
+  if (btn && panel) {
+    btn.addEventListener('click', () => {
+      const isOpen = panel.style.display !== 'none';
+      panel.style.display = isOpen ? 'none' : 'block';
+      if (!isOpen) {
+        notificationState.items = notificationState.items.map(n => ({ ...n, unread: false }));
+        notificationState.unreadCount = 0;
+        saveNotificationState();
+        renderNotifications();
+      }
+    });
+  }
+  
+  if (clearBtn) {
+    clearBtn.addEventListener('click', () => {
+      notificationState.items = [];
+      notificationState.unreadCount = 0;
+      saveNotificationState();
+      renderNotifications();
+    });
+  }
+  
+  if (enableBtn) {
+    enableBtn.addEventListener('click', async () => {
+      if (!('Notification' in window)) return;
+      const permission = await Notification.requestPermission();
+      if (permission === 'granted') {
+        showNotification('🔔 Notifications activées', 'success');
+      } else {
+        showNotification('🔕 Notifications refusées', 'warning');
+      }
+    });
   }
 };
 
@@ -830,7 +1085,15 @@ const addComment = async (answerId) => {
   const input = document.getElementById(`comment-input-${answerId}`);
   const text = input.value.trim();
   
-  if (!text) return;
+  if (!text) {
+    showNotification(currentLang === 'fr' ? 'Veuillez écrire un commentaire' : 'Please write a comment', 'warning');
+    return;
+  }
+  
+  if (text.length < 2 || text.length > 500) {
+    showNotification(currentLang === 'fr' ? 'Commentaire invalide (2-500 caractères)' : 'Invalid comment (2-500 characters)', 'warning');
+    return;
+  }
   
   try {
     const res = await fetch(`/api/answers/${answerId}/comment`, {
@@ -903,7 +1166,11 @@ document.addEventListener("DOMContentLoaded", () => {
     console.log('Utilisateur restauré:', currentUser);
     
     // Charger la question du jour et démarrer le temps réel
-    loadTodayQuestion();
+  loadNotificationState();
+  renderNotifications();
+  setupNotificationUI();
+  
+  loadTodayQuestion();
   } else {
     console.log('Aucun utilisateur connecté');
     // Rediriger vers la page de connexion

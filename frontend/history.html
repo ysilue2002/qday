@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QDAY - Historique</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="history-page">
+  <div class="history-layout">
+    <div class="history-list">
+      <div class="top-nav">
+        <a class="nav-link" href="question.html" data-translate="nav_today">Question du jour</a>
+        <a class="nav-link active" href="history.html" data-translate="nav_history">Historique</a>
+      </div>
+
+      <h1 data-translate="history_title">Historique des questions</h1>
+      <p class="history-subtitle" data-translate="history_subtitle">
+        Retrouvez les questions précédentes et leurs réponses.
+      </p>
+
+      <div id="historyList" class="history-items">
+        <div class="history-empty" data-translate="history_loading">Chargement...</div>
+      </div>
+    </div>
+
+    <div class="history-detail">
+      <div id="historyDetail">
+        <div class="history-placeholder" data-translate="history_select">
+          Sélectionnez une question pour voir les réponses.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="translations.js"></script>
+  <script src="history.js"></script>
+</body>
+</html>

@@ -31,9 +31,20 @@ const AnswerSchema = new mongoose.Schema({
   text: String,
   language: String,
   likes: [String],
+  dislikes: [String],
+  reports: [{
+    author: String,
+    reason: String,
+    createdAt: { type: Date, default: Date.now }
+  }],
   comments: [{
     author: String,
     text: String,
+    reports: [{
+      author: String,
+      reason: String,
+      createdAt: { type: Date, default: Date.now }
+    }],
     createdAt: { type: Date, default: Date.now }
   }],
   createdAt: { type: Date, default: Date.now }

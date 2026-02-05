@@ -5,6 +5,10 @@ console.log('=== SIMPLE VERSION START ===');
 let currentUser = '';
 let currentQuestion = null;
 let currentLang = localStorage.getItem('qdayLanguage') || 'fr';
+let notificationState = {
+  unreadCount: 0,
+  items: []
+};
 
 // Publicités - Configuration optimisée pour mobile
 const currentAds = {
@@ -141,6 +145,114 @@ const showNotification = (message, type = 'info') => {
       }
     }, 300);
   }, 3000);
+};
+
+// Advanced notifications (in-app + browser)
+const loadNotificationState = () => {
+  try {
+    const stored = localStorage.getItem('qdayNotifications');
+    notificationState.items = stored ? JSON.parse(stored) : [];
+    notificationState.unreadCount = notificationState.items.filter(n => n.unread).length;
+  } catch {
+    notificationState.items = [];
+    notificationState.unreadCount = 0;
+  }
+};
+
+const saveNotificationState = () => {
+  localStorage.setItem('qdayNotifications', JSON.stringify(notificationState.items.slice(0, 100)));
+};
+
+const renderNotifications = () => {
+  const badge = document.getElementById('notifBadge');
+  const list = document.getElementById('notifList');
+  
+  if (badge) {
+    badge.textContent = notificationState.unreadCount;
+    badge.style.display = notificationState.unreadCount > 0 ? 'inline-block' : 'none';
+  }
+  
+  if (!list) return;
+  
+  if (notificationState.items.length === 0) {
+    list.innerHTML = `<div class="notif-empty" data-translate="notif_empty">${t('notif_empty')}</div>`;
+    if (window.updateAllTexts) {
+      window.updateAllTexts();
+    }
+    return;
+  }
+  
+  list.innerHTML = notificationState.items.map((n) => `
+    <div class="notif-item ${n.unread ? 'unread' : ''}">
+      ${n.message}
+      <div style="color:#888; font-size:0.7rem; margin-top:0.2rem;">${new Date(n.date).toLocaleString()}</div>
+    </div>
+  `).join('');
+};
+
+const pushAdvancedNotification = (message, type = 'info') => {
+  const entry = {
+    id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    message,
+    type,
+    date: new Date().toISOString(),
+    unread: true
+  };
+  
+  notificationState.items.unshift(entry);
+  notificationState.unreadCount += 1;
+  saveNotificationState();
+  renderNotifications();
+  
+  // Browser notification if permitted
+  if ('Notification' in window && Notification.permission === 'granted') {
+    try {
+      new Notification('Qday', { body: message });
+    } catch (err) {
+      console.error('Browser notification failed:', err);
+    }
+  }
+};
+
+const setupNotificationUI = () => {
+  const btn = document.getElementById('notifBtn');
+  const panel = document.getElementById('notifPanel');
+  const clearBtn = document.getElementById('notifClearBtn');
+  const enableBtn = document.getElementById('notifEnableBtn');
+  
+  if (btn && panel) {
+    btn.addEventListener('click', () => {
+      const isOpen = panel.style.display !== 'none';
+      panel.style.display = isOpen ? 'none' : 'block';
+      if (!isOpen) {
+        notificationState.items = notificationState.items.map(n => ({ ...n, unread: false }));
+        notificationState.unreadCount = 0;
+        saveNotificationState();
+        renderNotifications();
+      }
+    });
+  }
+  
+  if (clearBtn) {
+    clearBtn.addEventListener('click', () => {
+      notificationState.items = [];
+      notificationState.unreadCount = 0;
+      saveNotificationState();
+      renderNotifications();
+    });
+  }
+  
+  if (enableBtn) {
+    enableBtn.addEventListener('click', async () => {
+      if (!('Notification' in window)) return;
+      const permission = await Notification.requestPermission();
+      if (permission === 'granted') {
+        showNotification('🔔 Notifications activées', 'success');
+      } else {
+        showNotification('🔕 Notifications refusées', 'warning');
+      }
+    });
+  }
 };
 
 // Charger la question du jour - Version SANS CACHE, temps réel direct
@@ -331,6 +443,7 @@ const loadAnswers = async () => {
       
       if (Array.isArray(apiAnswers) && apiAnswers.length > 0) {
         displayAnswers(apiAnswers);
+        processNotifications(apiAnswers);
         showNotification(`✅ ${apiAnswers.length} réponse(s) trouvée(s)`, 'success');
       } else {
         console.log('ℹ️ No answers found in API');
@@ -345,6 +458,40 @@ const loadAnswers = async () => {
     console.error('❌ Error loading answers:', err);
     showNotification(`❌ Erreur chargement réponses: ${err.message}`, 'error');
     displayAnswers([]);
+  }
+};
+
+// Notifications simples (nouvelle question + interactions)
+const processNotifications = (answers) => {
+  try {
+    if (currentQuestion && currentQuestion._id) {
+      const lastQuestionId = localStorage.getItem('qdayLastQuestionId');
+      if (lastQuestionId && lastQuestionId !== currentQuestion._id) {
+        pushAdvancedNotification('🆕 Nouvelle question publiée!', 'info');
+      }
+      localStorage.setItem('qdayLastQuestionId', currentQuestion._id);
+    }
+    
+    if (!currentUser || !Array.isArray(answers)) return;
+    
+    answers.forEach((answer) => {
+      if (answer.author !== currentUser) return;
+      const likesCount = Array.isArray(answer.likes) ? answer.likes.length : 0;
+      const commentsCount = Array.isArray(answer.comments) ? answer.comments.length : 0;
+      const key = `qdayAnswerMeta_${answer._id}`;
+      const prev = JSON.parse(localStorage.getItem(key) || '{}');
+      
+      if (prev.likesCount !== undefined && likesCount > prev.likesCount) {
+        pushAdvancedNotification('💖 Nouveau like sur votre réponse!', 'info');
+      }
+      if (prev.commentsCount !== undefined && commentsCount > prev.commentsCount) {
+        pushAdvancedNotification('💬 Nouveau commentaire sur votre réponse!', 'info');
+      }
+      
+      localStorage.setItem(key, JSON.stringify({ likesCount, commentsCount }));
+    });
+  } catch (err) {
+    console.error('Notification error:', err);
   }
 };
 
@@ -411,8 +558,8 @@ const displayAnswers = (answers) => {
         ${answer.text}
       </p>
       <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #f0f0f0;">
-        <div style="display: flex; gap: 10px; align-items: center;">
-          <button onclick="likeAnswer('${answer._id}')" id="like-btn-${answer._id}" style="
+        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+          <button onclick="likeAnswer('${answer._id}')" id="like-btn-${answer._id}" data-liked="${isLikedByUser(answer)}" style="
             background: ${isLikedByUser(answer) ? '#ff6b6b' : '#f0f0f0'}; 
             color: ${isLikedByUser(answer) ? 'white' : '#333'}; 
             border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; 
@@ -420,12 +567,26 @@ const displayAnswers = (answers) => {
           " onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
             ❤️ ${answer.likes ? answer.likes.length : 0}
           </button>
+          <button onclick="dislikeAnswer('${answer._id}')" id="dislike-btn-${answer._id}" data-disliked="${isDislikedByUser(answer)}" style="
+            background: ${isDislikedByUser(answer) ? '#6c757d' : '#f0f0f0'}; 
+            color: ${isDislikedByUser(answer) ? 'white' : '#333'}; 
+            border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; 
+            font-size: 0.85rem; transition: all 0.2s ease;
+          " onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+            👎 ${answer.dislikes ? answer.dislikes.length : 0}
+          </button>
           <button onclick="toggleComments('${answer._id}')" style="
             background: #f0f0f0; color: #333; border: none; padding: 6px 12px; 
             border-radius: 6px; cursor: pointer; font-size: 0.85rem; 
             transition: all 0.2s ease;
           " onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
             💬 ${answer.comments ? answer.comments.length : 0}
+          </button>
+          <button onclick="reportAnswer('${answer._id}')" style="
+            background: #fff3cd; color: #856404; border: 1px solid #ffeeba; 
+            padding: 6px 10px; border-radius: 6px; cursor: pointer; font-size: 0.8rem;
+          ">
+            🚩 ${t('report')}
           </button>
         </div>
       </div>
@@ -444,7 +605,7 @@ const displayAnswers = (answers) => {
           </button>
         </div>
         <div id="comments-list-${answer._id}">
-          ${renderComments(answer.comments || [])}
+          ${renderComments(answer.comments || [], answer._id)}
         </div>
       </div>
     </div>
@@ -458,19 +619,32 @@ const isLikedByUser = (answer) => {
   return answer.likes && answer.likes.includes(currentUser);
 };
 
+// Vérifier si l'utilisateur a disliké une réponse
+const isDislikedByUser = (answer) => {
+  return answer.dislikes && answer.dislikes.includes(currentUser);
+};
+
 // Afficher les commentaires
-const renderComments = (comments) => {
+const renderComments = (comments, answerId) => {
   if (!comments || comments.length === 0) {
     return '<p style="color: #999; font-style: italic; font-size: 0.85rem;">Aucun commentaire pour le moment.</p>';
   }
   
-  return comments.map(comment => `
+  return comments.map((comment, idx) => `
     <div style="margin-bottom: 8px; padding: 8px; background: white; border-radius: 6px; border-left: 3px solid #667eea;">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
         <strong style="color: #333; font-size: 0.85rem;">${comment.author}</strong>
         <small style="color: #666; font-size: 0.75rem;">${formatDate(comment.createdAt)}</small>
       </div>
       <p style="margin: 0; color: #444; font-size: 0.85rem; line-height: 1.4;">${comment.text}</p>
+      <div style="margin-top: 6px;">
+        <button onclick="reportComment('${answerId}', ${idx})" style="
+          background: #fff3cd; color: #856404; border: 1px solid #ffeeba; 
+          padding: 4px 8px; border-radius: 6px; cursor: pointer; font-size: 0.75rem;
+        ">
+          🚩 ${t('report')}
+        </button>
+      </div>
     </div>
   `).join('');
 };
@@ -480,6 +654,9 @@ const likeAnswer = async (answerId) => {
   console.log('👍 Liking answer:', answerId);
   
   try {
+    const likeBtn = document.getElementById(`like-btn-${answerId}`);
+    const wasLiked = likeBtn && likeBtn.getAttribute('data-liked') === 'true';
+
     const res = await fetch(`/api/answers/${answerId}/like`, {
       method: 'POST',
       headers: {
@@ -492,7 +669,7 @@ const likeAnswer = async (answerId) => {
     
     if (res.ok) {
       console.log('✅ Like successful');
-      showNotification('❤️ Liké!', 'success');
+      showNotification(wasLiked ? '💔 Like retiré' : '❤️ Liké!', 'success');
       
       // Recharger les réponses pour mettre à jour le compteur
       setTimeout(() => {
@@ -508,6 +685,86 @@ const likeAnswer = async (answerId) => {
   } catch (err) {
     console.error('❌ Like network error:', err);
     showNotification('❌ Erreur réseau', 'error');
+  }
+};
+
+// Dislike une réponse
+const dislikeAnswer = async (answerId) => {
+  console.log('👎 Disliking answer:', answerId);
+  
+  try {
+    const res = await fetch(`/api/answers/${answerId}/dislike`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        author: currentUser
+      })
+    });
+    
+    if (res.ok) {
+      console.log('✅ Dislike successful');
+      showNotification('👎 Disliké!', 'success');
+      
+      setTimeout(() => {
+        loadAnswers();
+      }, 200);
+    } else {
+      const errorText = await res.text();
+      console.error('❌ Dislike error:', res.status, errorText);
+      showNotification('❌ Erreur lors du dislike', 'error');
+    }
+    
+  } catch (err) {
+    console.error('❌ Dislike network error:', err);
+    showNotification('❌ Erreur réseau', 'error');
+  }
+};
+
+// Signaler une réponse
+const reportAnswer = async (answerId) => {
+  if (!currentUser) {
+    showNotification('❌ Utilisateur non connecté', 'error');
+    return;
+  }
+  const rawReason = prompt('Pourquoi signalez-vous cette réponse ?');
+  if (rawReason === null) return;
+  const reason = rawReason.trim();
+  
+  try {
+    await fetch(`/api/answers/${answerId}/report`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ author: currentUser, reason })
+    });
+    showNotification('🚩 Signalement envoyé', 'info');
+  } catch (err) {
+    console.error('❌ Report error:', err);
+    showNotification('❌ Erreur lors du signalement', 'error');
+  }
+};
+
+// Signaler un commentaire
+const reportComment = async (answerId, index) => {
+  if (!currentUser) {
+    showNotification('❌ Utilisateur non connecté', 'error');
+    return;
+  }
+  const rawReason = prompt('Pourquoi signalez-vous ce commentaire ?');
+  if (rawReason === null) return;
+  const reason = rawReason.trim();
+  
+  try {
+    await fetch(`/api/answers/${answerId}/comment-report`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ author: currentUser, reason, index })
+    });
+    showNotification('🚩 Signalement envoyé', 'info');
+  } catch (err) {
+    console.error('❌ Report comment error:', err);
+    showNotification('❌ Erreur lors du signalement', 'error');
   }
 };
 
@@ -537,6 +794,11 @@ const addComment = async (answerId) => {
   
   if (!text) {
     showNotification('⚠️ Veuillez écrire un commentaire', 'warning');
+    return;
+  }
+  
+  if (text.length < 2 || text.length > 500) {
+    showNotification('⚠️ Commentaire invalide (2-500 caractères)', 'warning');
     return;
   }
   
@@ -697,6 +959,11 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // Charger les publicités (optimisé pour mobile)
   loadAds();
+  
+  // Initialiser les notifications
+  loadNotificationState();
+  renderNotifications();
+  setupNotificationUI();
   
   // Charger la question (qui chargera aussi les réponses)
   loadQuestionFromAPI();
