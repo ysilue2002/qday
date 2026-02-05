@@ -94,8 +94,21 @@ const loadTodayQuestion = async () => {
       } else {
         const errorText = await res.text();
         console.error('API Error:', res.status, errorText);
+        if (res.status === 404) {
+          throw new Error('NO_ACTIVE_QUESTION');
+        }
       }
     } catch (apiErr) {
+      if (apiErr && apiErr.message === 'NO_ACTIVE_QUESTION') {
+        document.getElementById("questionBox").innerHTML = `
+          <div class="question-card" style="background: #6c757d; color: white; padding: 20px; border-radius: 15px; margin: 10px 0;">
+            <h3>${currentLang === 'fr' ? 'Aucune question active' : 'No active question'}</h3>
+            <small>${currentLang === 'fr' ? 'Veuillez revenir plus tard' : 'Please come back later'}</small>
+          </div>
+        `;
+        document.getElementById("answersBox").innerHTML = '';
+        return;
+      }
       console.error('API request failed:', apiErr);
     }
     
@@ -160,35 +173,14 @@ const loadTodayQuestion = async () => {
       }
     }
     
-    // ÉTAPE 3: Question par défaut finale
-    console.log('No admin questions found, using default question...');
-    const defaultQuestion = {
-      _id: 'default-question-fixed',
-      text: currentLang === 'fr' ? "Quelle est votre plus grande réussite cette année ?" : "What is your greatest achievement this year?",
-      text_fr: "Quelle est votre plus grande réussite cette année ?",
-      text_en: "What is your greatest achievement this year?",
-      category: "Réflexion / Reflection",
-      active: true,
-      createdAt: new Date(),
-      isDefault: true
-    };
-    
-    currentQuestion = defaultQuestion;
-    
-    const questionText = getQuestionText(currentQuestion);
-    const questionDate = currentQuestion.date || currentQuestion.createdAt || new Date().toISOString();
-    
+    // Aucune question active
     document.getElementById("questionBox").innerHTML = `
-      <div class="question-card" style="background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%); color: white; padding: 20px; border-radius: 15px; margin: 10px 0; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
-        <h3 style="margin: 0 0 10px 0; font-size: 1.2em; line-height: 1.4;">${questionText}</h3>
-        <small style="opacity: 0.9;">${currentQuestion.category} | ${new Date(questionDate).toLocaleDateString()}</small>
-        <div style="margin-top: 10px; padding: 8px; background: rgba(255,255,255,0.2); border-radius: 8px; font-size: 0.9rem;">
-          🌟 Question par défaut
-        </div>
+      <div class="question-card" style="background: #6c757d; color: white; padding: 20px; border-radius: 15px; margin: 10px 0;">
+        <h3>${currentLang === 'fr' ? 'Aucune question active' : 'No active question'}</h3>
+        <small>${currentLang === 'fr' ? 'Veuillez revenir plus tard' : 'Please come back later'}</small>
       </div>
     `;
-    
-    loadUnifiedAnswers();
+    document.getElementById("answersBox").innerHTML = '';
     
   } catch (err) {
     console.error('UNIFIED ERROR - Question loading failed:', err);

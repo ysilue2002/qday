@@ -359,25 +359,20 @@ const loadQuestionFromAPI = async () => {
       console.error('❌ Fresh ALL questions API failed:', allErr);
     }
     
-    console.log('⚠️ NO ACTIVE QUESTION FOUND - using DEFAULT');
-    
-    // ÉTAPE 3: Question par défaut UNIQUEMENT si aucune question active
-    const defaultQuestion = {
-      _id: `default-${nowTs}`,
-      text: currentLang === 'fr' ? "Quelle est votre plus grande réussite cette année ?" : "What is your greatest achievement this year?",
-      text_fr: "Quelle est votre plus grande réussite cette année ?",
-      text_en: "What is your greatest achievement this year?",
-      category: "Réflexion / Reflection",
-      active: true,
-      createdAt: new Date(),
-      isDefault: true
-    };
-    
-    currentQuestion = defaultQuestion;
-    displayQuestion(defaultQuestion);
-    loadAnswers();
-    
-    showNotification('ℹ️ Question par défaut utilisée (aucune active trouvée)', 'info');
+    console.log('⚠️ NO ACTIVE QUESTION FOUND');
+    currentQuestion = null;
+    const questionBox = document.getElementById('questionBox');
+    if (questionBox) {
+      questionBox.innerHTML = `
+        <div class="question-card" style="background: #6c757d; color: white; padding: 20px; border-radius: 15px; margin: 10px 0;">
+          <h3>${currentLang === 'fr' ? 'Aucune question active' : 'No active question'}</h3>
+          <small>${currentLang === 'fr' ? 'Veuillez revenir plus tard' : 'Please come back later'}</small>
+        </div>
+      `;
+    }
+    const answersBox = document.getElementById('answersBox');
+    if (answersBox) answersBox.innerHTML = '';
+    showNotification('ℹ️ Aucune question active', 'info');
     
   } catch (err) {
     console.error('❌ Error loading FRESH question:', err);

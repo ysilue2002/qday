@@ -30,18 +30,6 @@ const getTodayQuestion = async (req, res) => {
   try {
     console.log('=== getTodayQuestion called ===');
     
-    // Question par défaut garantie
-    const defaultQuestion = {
-      _id: 'default-' + Date.now(),
-      text: "Quelle est votre plus grande réussite cette année ?",
-      text_fr: "Quelle est votre plus grande réussite cette année ?",
-      text_en: "What is your greatest achievement this year?",
-      category: "Réflexion",
-      active: true,
-      createdAt: new Date(),
-      isDefault: true
-    };
-    
     // Essayer MongoDB avec protection totale
     try {
       if (mongoose.connection.readyState === 1) {
@@ -70,27 +58,13 @@ const getTodayQuestion = async (req, res) => {
       console.error('MongoDB error (safe fallback):', dbErr.message);
     }
     
-    // Retourner la question par défaut
-    console.log('Returning default question');
-    return res.status(200).json(defaultQuestion);
+    // Aucune question active
+    return res.status(404).json({ message: "Aucune question active" });
     
   } catch (err) {
     console.error('Critical error (still returning 200):', err);
     
-    // Question de secours garantie
-    const fallbackQuestion = {
-      _id: 'fallback-' + Date.now(),
-      text: "Quelle est votre plus grande réussite cette année ?",
-      text_fr: "Quelle est votre plus grande réussite cette année ?",
-      text_en: "What is your greatest achievement this year?",
-      category: "Réflexion",
-      active: true,
-      createdAt: new Date(),
-      isFallback: true
-    };
-    
-    console.log('Returning fallback question (guaranteed 200)');
-    return res.status(200).json(fallbackQuestion);
+    return res.status(500).json({ message: "Erreur serveur" });
   }
 };
 
